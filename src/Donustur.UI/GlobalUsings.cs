@@ -1,0 +1,31 @@
+// Conflict resolution aliases for WPF + WinForms coexistence
+// WPF types take priority over WinForms throughout the project
+global using Application = System.Windows.Application;
+global using Point = System.Windows.Point;
+global using DragEventArgs = System.Windows.DragEventArgs;
+global using Control = System.Windows.Controls.Control;
+global using MouseEventArgs = System.Windows.Input.MouseEventArgs;
+global using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+global using Color = System.Windows.Media.Color;
+global using Brushes = System.Windows.Media.Brushes;
+global using Brush = System.Windows.Media.Brush;
+global using FontFamily = System.Windows.Media.FontFamily;
+global using Pen = System.Windows.Media.Pen;
+global using Size = System.Windows.Size;
+global using Orientation = System.Windows.Controls.Orientation;
+global using RadioButton = System.Windows.Controls.RadioButton;
+global using Button = System.Windows.Controls.Button;
+global using MessageBox = System.Windows.MessageBox;
+global using MessageBoxButton = System.Windows.MessageBoxButton;
+global using MessageBoxImage = System.Windows.MessageBoxImage;
+global using FontStyle = System.Windows.FontStyle;
+global using FontStyles = System.Windows.FontStyles;
+global using FlowDirection = System.Windows.FlowDirection;
+global using DataFormats = System.Windows.DataFormats;
+global using DragDropEffects = System.Windows.DragDropEffects;
+global using StreamReader = System.IO.StreamReader;
+global using StreamWriter = System.IO.StreamWriter;
+global using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
+global using Clipboard = System.Windows.Clipboard;
+global using Cursors = System.Windows.Input.Cursors;
+global using HorizontalAlignment = System.Windows.HorizontalAlignment;

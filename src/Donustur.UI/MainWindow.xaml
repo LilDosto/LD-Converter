@@ -1,0 +1,407 @@
+<Window x:Class="Donustur.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="LD Converter"
+        Width="940" Height="700"
+        MinWidth="800" MinHeight="580"
+        WindowStartupLocation="CenterScreen"
+        Background="#0E121B"
+        Foreground="#FFFFFF"
+        AllowDrop="True">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI Variable Display, Segoe UI, Arial"/>
+        </Style>
+
+        <Style x:Key="NavTabButton" TargetType="RadioButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#252A3D"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#1C2130"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="#6366F1"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="btnBorder" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="btnBorder" Property="Background" Value="#4F46E5"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="btnBorder" Property="Background" Value="#374151"/>
+                                <Setter Property="Foreground" Value="#9CA3AF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#262C3D"/>
+            <Setter Property="Foreground" Value="#E5E7EB"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="secBorder" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="secBorder" Property="Background" Value="#323A50"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ChipButton" TargetType="RadioButton">
+            <Setter Property="Background" Value="#1A2030"/>
+            <Setter Property="Foreground" Value="#D1D5DB"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderBrush" Value="#2F384F"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="chipBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="20" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="chipBorder" Property="Background" Value="#6366F1"/>
+                                <Setter TargetName="chipBorder" Property="BorderBrush" Value="#818CF8"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="chipBorder" Property="BorderBrush" Value="#6366F1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- Üst Navigasyon / Header -->
+            <RowDefinition Height="64"/>
+            <!-- İçerik Alanı -->
+            <RowDefinition Height="*"/>
+            <!-- Durum Çubuğu -->
+            <RowDefinition Height="34"/>
+        </Grid.RowDefinitions>
+
+        <!-- Üst Başlık & Sekmeler -->
+        <Border Grid.Row="0" Background="#141824" BorderBrush="#252D42" BorderThickness="0,0,0,1" Padding="20,0">
+            <Grid VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Logo & İsim -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image x:Name="HeaderLogoImage" Width="36" Height="36" Margin="0,0,12,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="LD Converter" FontSize="16" FontWeight="Bold" Foreground="#FFFFFF"/>
+                        <TextBlock Text="Hızlı Medya &amp; Belge Aracı" FontSize="10.5" Foreground="#9CA3AF"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Navigasyon Sekmeleri -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <RadioButton x:Name="TabConvert" Content="Dönüştür" Style="{StaticResource NavTabButton}" IsChecked="True" Checked="OnTabChanged"/>
+                    <RadioButton x:Name="TabHistory" Content="Kitaplık" Style="{StaticResource NavTabButton}" Checked="OnTabChanged"/>
+                    <RadioButton x:Name="TabTools" Content="Hızlı Araçlar" Style="{StaticResource NavTabButton}" Checked="OnTabChanged"/>
+                </StackPanel>
+
+                <!-- Sağ Üst Butonlar -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="WheelStatusButton"
+                            Background="#1F293D"
+                            Foreground="#E5E7EB"
+                            BorderBrush="#374151"
+                            BorderThickness="1"
+                            Padding="12,6"
+                            Margin="0,0,10,0"
+                            Cursor="Hand"
+                            ToolTip="Sürükleme çarkını hızlıca aç/kapat"
+                            Click="OnToggleWheelClick">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="16"/>
+                            </Style>
+                        </Button.Resources>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="WheelStatusLed" Width="8" Height="8" Fill="#10B981" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="WheelStatusLabel" Text="Çark: Shift" FontSize="11.5" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Content="⚙️ Ayarlar"
+                            Background="Transparent"
+                            Foreground="#9CA3AF"
+                            BorderThickness="0"
+                            FontSize="12.5"
+                            Cursor="Hand"
+                            Padding="8,6"
+                            Click="OnOpenSettingsClick"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- İçerik Sayfaları -->
+        <Grid Grid.Row="1" Margin="24">
+            <!-- 1. DÖNÜŞTÜR SEKMESİ -->
+            <Grid x:Name="ConvertView" Visibility="Visible">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Sürükle Bırak Alanı -->
+                <Border x:Name="DropZoneBorder"
+                        Grid.Row="0"
+                        Background="#131722"
+                        BorderBrush="#374151"
+                        BorderThickness="2"
+                        CornerRadius="16"
+                        AllowDrop="True"
+                        DragEnter="OnMainDragEnter"
+                        DragOver="OnMainDragOver"
+                        DragLeave="OnMainDragLeave"
+                        Drop="OnMainDrop">
+                    <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="24">
+                        <StackPanel x:Name="EmptyPrompt" HorizontalAlignment="Center">
+                            <Border Width="68" Height="68" Background="#1E2333" CornerRadius="34" HorizontalAlignment="Center" Margin="0,0,0,16">
+                                <TextBlock Text="📁" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="Dosyaları veya klasörleri buraya sürükleyip bırakın"
+                                       FontSize="17" FontWeight="Bold"
+                                       Foreground="#FFFFFF" HorizontalAlignment="Center"/>
+                            <TextBlock Text="veya bilgisayarınızdan seçmek için aşağıdaki butonları kullanın"
+                                       FontSize="12.5" Foreground="#9CA3AF"
+                                       HorizontalAlignment="Center" Margin="0,4,0,18"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button Content="Dosya Seçin..."
+                                        Style="{StaticResource ActionButton}"
+                                        Click="OnSelectFilesClick"/>
+                                <Button Content="Klasör Seçin..."
+                                        Style="{StaticResource SecondaryButton}"
+                                        Margin="10,0,0,0"
+                                        Click="OnSelectFolderClick"/>
+                            </StackPanel>
+                            <TextBlock Text="💡 İpucu: Masaüstünde veya klasörde dosyayı sürüklerken Shift tuşuna basarak hızlı çarkı açabilirsiniz!"
+                                       FontSize="11.5" Foreground="#818CF8"
+                                       HorizontalAlignment="Center" Margin="0,22,0,0"/>
+                        </StackPanel>
+
+                        <!-- Seçili Dosyalar Paneli -->
+                        <StackPanel x:Name="SelectedFilesPanel" Visibility="Collapsed" HorizontalAlignment="Center" Width="700">
+                            <TextBlock x:Name="FilesCountLabel" Text="3 dosya seçildi" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="FilesSubLabel" Text="Toplam boyut: 1.4 MB" FontSize="12" Foreground="#9CA3AF" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                            <!-- Seçili Dosya Listesi -->
+                            <Border Background="#0E121B" BorderBrush="#252D42" BorderThickness="1" CornerRadius="10" Padding="8" MaxHeight="135" Margin="0,0,0,16">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel x:Name="SelectedFileItemsStack"/>
+                                </ScrollViewer>
+                            </Border>
+
+                            <TextBlock Text="Hedef İşlemi / Formatı Seçin:" FontSize="13" FontWeight="SemiBold" Foreground="#E5E7EB" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                            
+                            <!-- Format Çipleri -->
+                            <WrapPanel x:Name="FormatChipsPanel" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                            <TextBlock x:Name="SelectedToolDescriptionLabel" Text="" FontSize="11.5" Foreground="#818CF8" HorizontalAlignment="Center" Margin="0,0,0,14"/>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                <Button x:Name="StartConvertButton"
+                                        Content="Dönüştürmeyi Başlat"
+                                        Style="{StaticResource ActionButton}"
+                                        Click="OnStartConvertClick"/>
+                                <Button Content="+ Dosya Ekle"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Margin="10,0,0,0"
+                                        Click="OnAddMoreFilesClick"/>
+                                <Button Content="Temizle"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Margin="8,0,0,0"
+                                        Click="OnClearSelectionClick"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Dönüştürme İlerleme Barı -->
+                <Grid x:Name="ProgressGrid" Grid.Row="1" Margin="0,16,0,0" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock x:Name="CurrentTaskStatusLabel" Text="İşleniyor..." FontSize="12.5" Foreground="#E5E7EB" Margin="0,0,0,6"/>
+                        <ProgressBar x:Name="MainProgressBar" Height="6" Minimum="0" Maximum="100" Value="0" Foreground="#6366F1" Background="#1E2333" BorderThickness="0"/>
+                    </StackPanel>
+                    <Button x:Name="CancelConvertButton"
+                            Grid.Column="1"
+                            Content="İptal Et"
+                            Background="#7F1D1D"
+                            Foreground="#FCA5A5"
+                            BorderThickness="0"
+                            Padding="12,6"
+                            Margin="14,0,0,0"
+                            FontSize="12"
+                            VerticalAlignment="Bottom"
+                            Cursor="Hand"
+                            Click="OnCancelConvertClick">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                        </Button.Resources>
+                    </Button>
+                </Grid>
+            </Grid>
+
+            <!-- 2. KİTAPLIK / GEÇMİŞ SEKMESİ -->
+            <Grid x:Name="HistoryView" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Dönüşüm Geçmişi" FontSize="18" FontWeight="Bold" Foreground="#FFFFFF"/>
+                        <TextBlock Text="Tamamlanan işlemleriniz ve boyut tasarrufu özetleri" FontSize="11.5" Foreground="#9CA3AF"/>
+                    </StackPanel>
+                    <Button Content="Geçmişi Temizle"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Background="#262C3D"
+                            Foreground="#E5E7EB"
+                            BorderThickness="0"
+                            Padding="12,6"
+                            FontSize="12"
+                            Cursor="Hand"
+                            Click="OnClearHistoryClick">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                        </Button.Resources>
+                    </Button>
+                </DockPanel>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="HistoryItemsList"/>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- 3. HIZLI ARAÇLAR SEKMESİ -->
+            <Grid x:Name="ToolsView" Visibility="Collapsed">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel MaxWidth="740" HorizontalAlignment="Center">
+                        <!-- QR Kod Oluşturucu & Okuyucu Kartı -->
+                        <Border Background="#141824" BorderBrush="#252D42" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="📱 QR Kod Oluşturucu &amp; Okuyucu" FontSize="16" FontWeight="Bold" Margin="0,0,0,4"/>
+                                <TextBlock Text="Bağlantı veya metinden yüksek çözünürlüklü QR kod üretin ya da mevcut görsel/PDF içindeki QR kodu okuyun." FontSize="12" Foreground="#9CA3AF" Margin="0,0,0,14"/>
+                                <DockPanel Margin="0,0,0,10">
+                                    <Button Content="QR Görseli Üret" Style="{StaticResource ActionButton}" DockPanel.Dock="Right" Margin="10,0,0,0" Click="OnToolGenerateQrClick"/>
+                                    <TextBox x:Name="QrInputText" Text="https://" Background="#262C3D" Foreground="#FFFFFF" BorderBrush="#374151" Padding="10,8" FontSize="13" VerticalContentAlignment="Center" KeyDown="OnQrInputKeyDown"/>
+                                </DockPanel>
+
+                                <Separator Background="#252D42" Margin="0,6,0,12"/>
+
+                                <DockPanel>
+                                    <Button Content="Görsel veya PDF'den QR Oku..." Style="{StaticResource SecondaryButton}" DockPanel.Dock="Left" Click="OnToolReadQrClick"/>
+                                    <Button x:Name="CopyDecodedQrButton" Content="Metni Kopyala" Visibility="Collapsed" Style="{StaticResource ActionButton}" DockPanel.Dock="Right" Margin="8,0,0,0" Padding="12,8" Click="OnCopyDecodedQrClick"/>
+                                    <TextBox x:Name="DecodedQrResultBox" Visibility="Collapsed" IsReadOnly="True" Background="#1C2233" Foreground="#A5B4FC" BorderBrush="#374151" Padding="10,7" Margin="10,0,0,0" FontSize="12.5" VerticalContentAlignment="Center"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PDF Birleştirici Kartı -->
+                        <Border Background="#141824" BorderBrush="#252D42" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="📑 PDF &amp; Görsel Birleştirici" FontSize="16" FontWeight="Bold" Margin="0,0,0,4"/>
+                                <TextBlock Text="Birden fazla PDF belgesini veya görseli seçtiğiniz sırayla tek bir PDF dosyasında birleştirin." FontSize="12" Foreground="#9CA3AF" Margin="0,0,0,14"/>
+                                <Button Content="PDF / Görsel Dosyalarını Seç ve Birleştir..."
+                                        Style="{StaticResource ActionButton}"
+                                        HorizontalAlignment="Left"
+                                        Click="OnToolMergePdfsClick"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Arşiv Paketleyici Kartı -->
+                        <Border Background="#141824" BorderBrush="#252D42" BorderThickness="1" CornerRadius="12" Padding="20">
+                            <StackPanel>
+                                <TextBlock Text="📦 Hızlı Arşivleyici (ZIP / TAR.GZ)" FontSize="16" FontWeight="Bold" Margin="0,0,0,4"/>
+                                <TextBlock Text="Birden çok dosyayı anında sıkıştırılmış arşiv paketine dönüştürün." FontSize="12" Foreground="#9CA3AF" Margin="0,0,0,14"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="Dosyaları Seç ve ZIP Yap..."
+                                            Style="{StaticResource ActionButton}"
+                                            Click="OnToolQuickZipClick"/>
+                                    <Button Content="Dosyaları Seç ve TAR.GZ Yap..."
+                                            Style="{StaticResource SecondaryButton}"
+                                            Margin="10,0,0,0"
+                                            Click="OnToolQuickTarGzClick"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <!-- Alt Durum Çubuğu -->
+        <Border Grid.Row="2" Background="#0B0E15" BorderBrush="#1F2536" BorderThickness="0,1,0,0" Padding="20,0">
+            <DockPanel VerticalAlignment="Center">
+                <TextBlock x:Name="FooterStatusLabel" Text="LD Converter hazır. Sürükleyin ve dönüştürün." FontSize="11.5" Foreground="#9CA3AF" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="LD Converter v1.1.0" HorizontalAlignment="Right" FontSize="11" Foreground="#6B7280"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

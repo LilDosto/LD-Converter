@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Donustur.Core\Donustur.Core.csproj" />
+    <ProjectReference Include="..\Donustur.Engine\Donustur.Engine.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <AssemblyName>LDConverter</AssemblyName>
+    <Product>LD Converter</Product>
+    <Title>LD Converter</Title>
+    <Version>1.1.0</Version>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- WPF tiplerine öncelik ver: WinForms tipleri sadece TrayHost'ta tam qualified isimle kullanılır -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+  </PropertyGroup>
+
+</Project>
