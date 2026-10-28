@@ -39,13 +39,28 @@ public static class ProcessRunner
         using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
+        long lastReportTicks = 0;
+
+        void ReportThrottled(string line)
+        {
+            if (outputProgress == null) return;
+            long now = Environment.TickCount64;
+            if (now - Interlocked.Read(ref lastReportTicks) >= 60) // En fazla ~16 FPS raporlama (WPF Dispatcher koruması)
+            {
+                Interlocked.Exchange(ref lastReportTicks, now);
+                outputProgress.Report(line);
+            }
+        }
 
         process.OutputDataReceived += (_, e) =>
         {
             if (e.Data != null)
             {
-                stdOut.AppendLine(e.Data);
-                outputProgress?.Report(e.Data);
+                lock (stdOut)
+                {
+                    stdOut.AppendLine(e.Data);
+                }
+                ReportThrottled(e.Data);
             }
         };
 
@@ -53,8 +68,11 @@ public static class ProcessRunner
         {
             if (e.Data != null)
             {
-                stdErr.AppendLine(e.Data);
-                outputProgress?.Report(e.Data);
+                lock (stdErr)
+                {
+                    stdErr.AppendLine(e.Data);
+                }
+                ReportThrottled(e.Data);
             }
         };
 

@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using Donustur.Core.Math;
 using Donustur.Core.Models;
 
@@ -75,11 +74,89 @@ public sealed class RadialWheelControl : Control
     public double OuterRadius { get; set; } = 175.0;
     public double InnerRadius { get; set; } = 48.0;
 
+    // --- Performans ve Akışkanlık İçin Dondurulmuş (Frozen) Grafik Nesneleri ---
+    private static readonly RadialGradientBrush GlowBrush;
+    private static readonly LinearGradientBrush ActiveSegmentBrush;
+    private static readonly Pen ActiveSegmentPen;
+    private static readonly SolidColorBrush DefaultSegmentBrush;
+    private static readonly Pen DefaultSegmentPen;
+
+    private static readonly RadialGradientBrush HubShadowBrush;
+    private static readonly SolidColorBrush HubFillBrush;
+    private static readonly Pen HubBorderPen;
+
+    private static readonly Typeface SegmentTypefaceRegular;
+    private static readonly Typeface SegmentTypefaceBold;
+    private static readonly Typeface HubTitleTypeface;
+    private static readonly Typeface HubSubtitleTypeface;
+
+    private static readonly SolidColorBrush TextWhiteBrush;
+    private static readonly SolidColorBrush TextNormalBrush;
+    private static readonly SolidColorBrush TextSubBrush;
+
     static RadialWheelControl()
     {
         DefaultStyleKeyProperty.OverrideMetadata(
             typeof(RadialWheelControl),
             new FrameworkPropertyMetadata(typeof(RadialWheelControl)));
+
+        // Arka plan parlaması (Glow)
+        GlowBrush = new RadialGradientBrush
+        {
+            GradientOrigin = new Point(0.5, 0.5),
+            Center = new Point(0.5, 0.5),
+            RadiusX = 0.5,
+            RadiusY = 0.5
+        };
+        GlowBrush.GradientStops.Add(new GradientStop(Color.FromArgb(40, 99, 102, 241), 0.3));
+        GlowBrush.GradientStops.Add(new GradientStop(Colors.Transparent, 1.0));
+        GlowBrush.Freeze();
+
+        // Aktif dilim fırçası ve kalemi
+        ActiveSegmentBrush = new LinearGradientBrush(
+            Color.FromRgb(99, 102, 241),
+            Color.FromRgb(14, 165, 233),
+            new Point(0, 0),
+            new Point(1, 1));
+        ActiveSegmentBrush.Freeze();
+
+        ActiveSegmentPen = new Pen(new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)), 2.0);
+        ActiveSegmentPen.Brush.Freeze();
+        ActiveSegmentPen.Freeze();
+
+        // Varsayılan dilim fırçası ve kalemi
+        DefaultSegmentBrush = new SolidColorBrush(Color.FromArgb(200, 24, 27, 36));
+        DefaultSegmentBrush.Freeze();
+
+        DefaultSegmentPen = new Pen(new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)), 1.0);
+        DefaultSegmentPen.Brush.Freeze();
+        DefaultSegmentPen.Freeze();
+
+        // Merkez gösterge (Hub)
+        HubShadowBrush = new RadialGradientBrush();
+        HubShadowBrush.GradientStops.Add(new GradientStop(Color.FromArgb(160, 0, 0, 0), 0.7));
+        HubShadowBrush.GradientStops.Add(new GradientStop(Colors.Transparent, 1.0));
+        HubShadowBrush.Freeze();
+
+        HubFillBrush = new SolidColorBrush(Color.FromRgb(18, 20, 28));
+        HubFillBrush.Freeze();
+
+        HubBorderPen = new Pen(new SolidColorBrush(Color.FromArgb(120, 99, 102, 241)), 2.0);
+        HubBorderPen.Brush.Freeze();
+        HubBorderPen.Freeze();
+
+        // Tipografiler
+        SegmentTypefaceRegular = new Typeface(new FontFamily("Segoe UI Variable Display, Segoe UI, Arial"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        SegmentTypefaceBold = new Typeface(new FontFamily("Segoe UI Variable Display, Segoe UI, Arial"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+        HubTitleTypeface = new Typeface(new FontFamily("Segoe UI Variable Display, Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+        HubSubtitleTypeface = new Typeface(new FontFamily("Segoe UI Variable Display, Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+
+        // Metin fırçaları
+        TextWhiteBrush = Brushes.White;
+        TextNormalBrush = new SolidColorBrush(Color.FromRgb(220, 225, 235));
+        TextNormalBrush.Freeze();
+        TextSubBrush = new SolidColorBrush(Color.FromRgb(156, 163, 175));
+        TextSubBrush.Freeze();
     }
 
     public RadialWheelControl()
@@ -109,16 +186,7 @@ public sealed class RadialWheelControl : Control
         double gapDegrees = total > 1 ? 2.5 : 0.0;
 
         // Arka plan parlaması (Glow)
-        var glowBrush = new RadialGradientBrush
-        {
-            GradientOrigin = new Point(0.5, 0.5),
-            Center = new Point(0.5, 0.5),
-            RadiusX = 0.5,
-            RadiusY = 0.5
-        };
-        glowBrush.GradientStops.Add(new GradientStop(Color.FromArgb(40, 99, 102, 241), 0.3));
-        glowBrush.GradientStops.Add(new GradientStop(Colors.Transparent, 1.0));
-        dc.DrawEllipse(glowBrush, null, new Point(centerX, centerY), OuterRadius + 10, OuterRadius + 10);
+        dc.DrawEllipse(GlowBrush, null, new Point(centerX, centerY), OuterRadius + 10, OuterRadius + 10);
 
         // Dilimleri çiz
         for (int i = 0; i < total; i++)
@@ -137,27 +205,8 @@ public sealed class RadialWheelControl : Control
                 InnerRadius, isHovered ? OuterRadius + 5 : OuterRadius,
                 startAngle, sweepAngle);
 
-            Brush fillBrush;
-            Pen borderPen;
-
-            if (isHovered)
-            {
-                // Vurgulu modern gradyan
-                var activeBrush = new LinearGradientBrush
-                {
-                    StartPoint = new Point(0, 0),
-                    EndPoint = new Point(1, 1)
-                };
-                activeBrush.GradientStops.Add(new GradientStop(Color.FromRgb(99, 102, 241), 0.0)); // Indigo
-                activeBrush.GradientStops.Add(new GradientStop(Color.FromRgb(14, 165, 233), 1.0)); // Sky blue
-                fillBrush = activeBrush;
-                borderPen = new Pen(new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)), 2.0);
-            }
-            else
-            {
-                fillBrush = new SolidColorBrush(Color.FromArgb(200, 24, 27, 36));
-                borderPen = new Pen(new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)), 1.0);
-            }
+            Brush fillBrush = isHovered ? ActiveSegmentBrush : DefaultSegmentBrush;
+            Pen borderPen = isHovered ? ActiveSegmentPen : DefaultSegmentPen;
 
             dc.DrawGeometry(fillBrush, borderPen, geom);
 
@@ -174,10 +223,8 @@ public sealed class RadialWheelControl : Control
 
     private void DrawSegmentLabel(DrawingContext dc, string text, double x, double y, bool isHovered)
     {
-        var typeface = new Typeface(new FontFamily("Segoe UI Variable Display, Segoe UI, Arial"),
-            FontStyles.Normal,
-            isHovered ? FontWeights.Bold : FontWeights.SemiBold,
-            FontStretches.Normal);
+        var typeface = isHovered ? SegmentTypefaceBold : SegmentTypefaceRegular;
+        var brush = isHovered ? TextWhiteBrush : TextNormalBrush;
 
         var ft = new FormattedText(
             text,
@@ -185,7 +232,7 @@ public sealed class RadialWheelControl : Control
             FlowDirection.LeftToRight,
             typeface,
             isHovered ? 14 : 12.5,
-            isHovered ? Brushes.White : new SolidColorBrush(Color.FromRgb(220, 225, 235)),
+            brush,
             1.0);
 
         dc.DrawText(ft, new Point(x - (ft.Width / 2.0), y - (ft.Height / 2.0)));
@@ -194,15 +241,10 @@ public sealed class RadialWheelControl : Control
     private void DrawCenterHub(DrawingContext dc, double centerX, double centerY)
     {
         // Merkez gölge
-        var hubShadow = new RadialGradientBrush();
-        hubShadow.GradientStops.Add(new GradientStop(Color.FromArgb(160, 0, 0, 0), 0.7));
-        hubShadow.GradientStops.Add(new GradientStop(Colors.Transparent, 1.0));
-        dc.DrawEllipse(hubShadow, null, new Point(centerX, centerY), InnerRadius + 6, InnerRadius + 6);
+        dc.DrawEllipse(HubShadowBrush, null, new Point(centerX, centerY), InnerRadius + 6, InnerRadius + 6);
 
         // Merkez arkaplan
-        var hubFill = new SolidColorBrush(Color.FromRgb(18, 20, 28));
-        var hubPen = new Pen(new SolidColorBrush(Color.FromArgb(120, 99, 102, 241)), 2.0);
-        dc.DrawEllipse(hubFill, hubPen, new Point(centerX, centerY), InnerRadius, InnerRadius);
+        dc.DrawEllipse(HubFillBrush, HubBorderPen, new Point(centerX, centerY), InnerRadius, InnerRadius);
 
         // Merkez metin
         string centerTitle;
@@ -220,26 +262,24 @@ public sealed class RadialWheelControl : Control
             centerSubtitle = FileCount > 0 ? $"{FileCount} dosya" : "Bırakın";
         }
 
-        var typefaceBold = new Typeface(new FontFamily("Segoe UI Variable Display, Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
         var titleFt = new FormattedText(
             centerTitle,
             CultureInfo.CurrentUICulture,
             FlowDirection.LeftToRight,
-            typefaceBold,
+            HubTitleTypeface,
             11.0,
-            Brushes.White,
+            TextWhiteBrush,
             1.0);
 
         dc.DrawText(titleFt, new Point(centerX - (titleFt.Width / 2.0), centerY - 13));
 
-        var typefaceRegular = new Typeface(new FontFamily("Segoe UI Variable Display, Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
         var subFt = new FormattedText(
             centerSubtitle,
             CultureInfo.CurrentUICulture,
             FlowDirection.LeftToRight,
-            typefaceRegular,
+            HubSubtitleTypeface,
             9.5,
-            new SolidColorBrush(Color.FromRgb(156, 163, 175)),
+            TextSubBrush,
             1.0);
 
         dc.DrawText(subFt, new Point(centerX - (subFt.Width / 2.0), centerY + 3));
@@ -272,6 +312,7 @@ public sealed class RadialWheelControl : Control
 
         var geom = new PathGeometry();
         geom.Figures.Add(figure);
+        geom.Freeze(); // GPU donanım hızlandırma ve sıfır GC tahsisi için dondur
         return geom;
     }
 }

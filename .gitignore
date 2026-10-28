@@ -3,6 +3,7 @@
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+*.zip
 
 # Visual Studio / Rider / VS Code caches
 .vs/

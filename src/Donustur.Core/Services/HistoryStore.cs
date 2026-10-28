@@ -92,8 +92,8 @@ public sealed class HistoryStore
             {
                 _entries.RemoveRange(100, _entries.Count - 100);
             }
-            SaveInternal();
         }
+        SaveInternal();
         Changed?.Invoke();
     }
 
@@ -103,13 +103,10 @@ public sealed class HistoryStore
         lock (_lock)
         {
             removed = _entries.RemoveAll(e => e.Id == id) > 0;
-            if (removed)
-            {
-                SaveInternal();
-            }
         }
         if (removed)
         {
+            SaveInternal();
             Changed?.Invoke();
         }
     }
@@ -119,29 +116,38 @@ public sealed class HistoryStore
         lock (_lock)
         {
             _entries.Clear();
-            SaveInternal();
         }
+        SaveInternal();
         Changed?.Invoke();
     }
 
     private void SaveInternal()
     {
-        try
+        List<HistoryEntry> snapshot;
+        lock (_lock)
         {
-            string dir = Path.GetDirectoryName(_filePath)!;
-            if (!Directory.Exists(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
+            snapshot = _entries.ToList();
+        }
 
-            string json = JsonSerializer.Serialize(_entries, JsonOptions);
-            string tmp = _filePath + ".tmp";
-            File.WriteAllText(tmp, json);
-            File.Move(tmp, _filePath, overwrite: true);
-        }
-        catch
+        Task.Run(() =>
         {
-            // Silently handle IO errors
-        }
+            try
+            {
+                string dir = Path.GetDirectoryName(_filePath)!;
+                if (!Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                string json = JsonSerializer.Serialize(snapshot, JsonOptions);
+                string tmp = _filePath + ".tmp";
+                File.WriteAllText(tmp, json);
+                File.Move(tmp, _filePath, overwrite: true);
+            }
+            catch
+            {
+                // Silently handle IO errors
+            }
+        });
     }
 }

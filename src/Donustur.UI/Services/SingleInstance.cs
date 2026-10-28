@@ -65,7 +65,7 @@ public sealed class SingleInstance : IDisposable
                     string? msg = await reader.ReadLineAsync(_pipeCts.Token);
                     if (string.IsNullOrWhiteSpace(msg)) continue;
 
-                    System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
                     {
                         if (msg.StartsWith("FILES|", StringComparison.Ordinal))
                         {

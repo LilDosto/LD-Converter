@@ -210,21 +210,37 @@ public partial class MainWindow : Window
         EmptyPrompt.Visibility = Visibility.Collapsed;
         SelectedFilesPanel.Visibility = Visibility.Visible;
 
-        long totalBytes = FileUtils.CalculateTotalBytes(_selectedFiles);
         FilesCountLabel.Text = _selectedFiles.Count == 1
             ? Path.GetFileName(_selectedFiles[0].TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
             : $"{_selectedFiles.Count} öğe seçildi";
 
-        FilesSubLabel.Text = $"Toplam Boyut: {FileUtils.FormatBytes(totalBytes)}";
+        FilesSubLabel.Text = "Boyut hesaplanıyor...";
 
         RenderSelectedFileItems();
         RebuildFormatChips();
+
+        // Toplam boyutu arka planda hesaplayarak UI'ı anında akıcı tut
+        var filesToMeasure = _selectedFiles.ToList();
+        Task.Run(() =>
+        {
+            long totalBytes = FileUtils.CalculateTotalBytes(filesToMeasure);
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (_selectedFiles.Count == filesToMeasure.Count)
+                {
+                    FilesSubLabel.Text = $"Toplam Boyut: {FileUtils.FormatBytes(totalBytes)}";
+                }
+            });
+        });
     }
 
     private void RenderSelectedFileItems()
     {
         SelectedFileItemsStack.Children.Clear();
-        foreach (var filePath in _selectedFiles)
+        int maxVisible = 25;
+        var displayItems = _selectedFiles.Take(maxVisible).ToList();
+
+        foreach (var filePath in displayItems)
         {
             var row = new Border
             {
@@ -256,10 +272,27 @@ public partial class MainWindow : Window
             DockPanel.SetDock(removeBtn, Dock.Right);
             dock.Children.Add(removeBtn);
 
-            long itemSize = FileUtils.CalculateTotalBytes(new[] { filePath });
+            bool isDir = Directory.Exists(filePath);
+            string sizeStr;
+            try
+            {
+                if (!isDir && File.Exists(filePath))
+                {
+                    sizeStr = FileUtils.FormatBytes(new FileInfo(filePath).Length);
+                }
+                else
+                {
+                    sizeStr = "Klasör";
+                }
+            }
+            catch
+            {
+                sizeStr = "-";
+            }
+
             var sizeText = new TextBlock
             {
-                Text = FileUtils.FormatBytes(itemSize),
+                Text = sizeStr,
                 FontSize = 11,
                 Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -268,7 +301,6 @@ public partial class MainWindow : Window
             DockPanel.SetDock(sizeText, Dock.Right);
             dock.Children.Add(sizeText);
 
-            bool isDir = Directory.Exists(filePath);
             string displayName = Path.GetFileName(filePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             var nameText = new TextBlock
             {
@@ -283,6 +315,26 @@ public partial class MainWindow : Window
 
             row.Child = dock;
             SelectedFileItemsStack.Children.Add(row);
+        }
+
+        if (_selectedFiles.Count > maxVisible)
+        {
+            var moreBadge = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(50, 99, 102, 241)),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10, 6, 10, 6),
+                Margin = new Thickness(0, 2, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            moreBadge.Child = new TextBlock
+            {
+                Text = $"+ {_selectedFiles.Count - maxVisible} dosya daha seçili",
+                FontSize = 11.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(165, 180, 252))
+            };
+            SelectedFileItemsStack.Children.Add(moreBadge);
         }
     }
 
@@ -353,11 +405,8 @@ public partial class MainWindow : Window
 
         var progress = new Progress<double>(val =>
         {
-            Dispatcher.Invoke(() =>
-            {
-                MainProgressBar.Value = val;
-                CurrentTaskStatusLabel.Text = $"{_selectedTool.DisplayName} işleniyor (%{val:F0})...";
-            });
+            MainProgressBar.Value = val;
+            CurrentTaskStatusLabel.Text = $"{_selectedTool.DisplayName} işleniyor (%{val:F0})...";
         });
 
         var task = new ConversionTask
@@ -532,7 +581,7 @@ public partial class MainWindow : Window
         };
 
         string? firstOut = entry.OutputFiles.FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(firstOut) && (File.Exists(firstOut) || Directory.Exists(firstOut)))
+        if (!string.IsNullOrWhiteSpace(firstOut))
         {
             var openFolderBtn = new Button
             {
@@ -546,7 +595,17 @@ public partial class MainWindow : Window
                 BorderThickness = new Thickness(0)
             };
             string targetPath = firstOut;
-            openFolderBtn.Click += (_, _) => DesktopGeometry.RevealInExplorer(targetPath);
+            openFolderBtn.Click += (_, _) =>
+            {
+                if (File.Exists(targetPath) || Directory.Exists(targetPath))
+                {
+                    DesktopGeometry.RevealInExplorer(targetPath);
+                }
+                else
+                {
+                    MessageBox.Show("Hedef dosya veya klasör artık mevcut değil.", "Bilgi", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            };
             btnStack.Children.Add(openFolderBtn);
         }
 

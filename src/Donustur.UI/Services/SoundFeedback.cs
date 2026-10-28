@@ -4,25 +4,31 @@ public static class SoundFeedback
 {
     public static void PlayTick()
     {
-        try
+        Task.Run(() =>
         {
-            System.Media.SystemSounds.Beep.Play();
-        }
-        catch
-        {
-            // Ses çalınamazsa sessizce geç
-        }
+            try
+            {
+                System.Media.SystemSounds.Beep.Play();
+            }
+            catch
+            {
+                // Ses çalınamazsa sessizce geç
+            }
+        });
     }
 
     public static void PlaySuccess()
     {
-        try
+        Task.Run(() =>
         {
-            System.Media.SystemSounds.Asterisk.Play();
-        }
-        catch
-        {
-            // Sessizce geç
-        }
+            try
+            {
+                System.Media.SystemSounds.Asterisk.Play();
+            }
+            catch
+            {
+                // Sessizce geç
+            }
+        });
     }
 }

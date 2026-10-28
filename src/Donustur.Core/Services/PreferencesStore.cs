@@ -58,25 +58,28 @@ public sealed class PreferencesStore
 
     public void Save(AppPreferences preferences)
     {
-        try
+        _current = preferences;
+        Changed?.Invoke(_current);
+
+        Task.Run(() =>
         {
-            _current = preferences;
-            string dir = Path.GetDirectoryName(_filePath)!;
-            if (!Directory.Exists(dir))
+            try
             {
-                Directory.CreateDirectory(dir);
+                string dir = Path.GetDirectoryName(_filePath)!;
+                if (!Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                string json = JsonSerializer.Serialize(preferences, JsonOptions);
+                string tempFile = _filePath + ".tmp";
+                File.WriteAllText(tempFile, json);
+                File.Move(tempFile, _filePath, overwrite: true);
             }
-
-            string json = JsonSerializer.Serialize(preferences, JsonOptions);
-            string tempFile = _filePath + ".tmp";
-            File.WriteAllText(tempFile, json);
-            File.Move(tempFile, _filePath, overwrite: true);
-
-            Changed?.Invoke(_current);
-        }
-        catch
-        {
-            // Handle error silently
-        }
+            catch
+            {
+                // Handle error silently
+            }
+        });
     }
 }

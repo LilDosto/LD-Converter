@@ -55,25 +55,46 @@ public partial class ProgressToastWindow : Window
         }
     }
 
+    private static readonly System.Windows.Media.SolidColorBrush CompletedGreenBrush;
+
+    static ProgressToastWindow()
+    {
+        CompletedGreenBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(16, 185, 129));
+        CompletedGreenBrush.Freeze();
+    }
+
     public void UpdateProgress(double percent, string? status = null)
     {
-        Dispatcher.Invoke(() =>
+        if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
+
+        void Apply()
         {
             ProgressBar.Value = percent;
             if (!string.IsNullOrWhiteSpace(status))
             {
                 StatusText.Text = status;
             }
-        });
+        }
+
+        if (Dispatcher.CheckAccess())
+        {
+            Apply();
+        }
+        else
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Normal, (Action)Apply);
+        }
     }
 
     public void SetCompleted(IReadOnlyList<string> outputFiles, string? decodedText = null)
     {
-        Dispatcher.Invoke(() =>
+        if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
+
+        void Apply()
         {
             _isCompletedOrFailed = true;
             ProgressBar.Value = 100;
-            ProgressBar.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(16, 185, 129));
+            ProgressBar.Foreground = CompletedGreenBrush;
             TitleText.Text = "✓ Dönüştürme Tamamlandı";
 
             if (!string.IsNullOrWhiteSpace(decodedText))
@@ -97,12 +118,23 @@ public partial class ProgressToastWindow : Window
             }
 
             _autoCloseTimer.Start();
-        });
+        }
+
+        if (Dispatcher.CheckAccess())
+        {
+            Apply();
+        }
+        else
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Normal, (Action)Apply);
+        }
     }
 
     public void SetFailed(string error)
     {
-        Dispatcher.Invoke(() =>
+        if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
+
+        void Apply()
         {
             _isCompletedOrFailed = true;
             TitleText.Text = "✕ İşlem Tamamlanamadı";
@@ -110,7 +142,16 @@ public partial class ProgressToastWindow : Window
             StatusText.Text = error;
             ProgressBar.Visibility = Visibility.Collapsed;
             _autoCloseTimer.Start();
-        });
+        }
+
+        if (Dispatcher.CheckAccess())
+        {
+            Apply();
+        }
+        else
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Normal, (Action)Apply);
+        }
     }
 
     private void OnCloseClick(object sender, RoutedEventArgs e)

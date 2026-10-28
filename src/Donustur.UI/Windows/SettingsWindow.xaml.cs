@@ -66,35 +66,52 @@ public partial class SettingsWindow : Window
         CustomFolderText.Text = prefs.CustomOutputDirectory;
         CustomFolderPanel.Visibility = OutputModeCombo.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
 
-        // Harici Motor Kontrolleri
-        var officeEngine = new OfficeDocumentEngine(prefs.CustomLibreOfficePath);
-        if (officeEngine.IsAvailable)
-        {
-            LibreOfficeStatusText.Text = $"✓ Hazır ({officeEngine.ResolveSofficePath()})";
-            LibreOfficeStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
-        }
-        else
-        {
-            LibreOfficeStatusText.Text = "ℹ Kurulu değil (TXT/DOCX/HTML/PDF yerel motoru aktif; PPTX/XLSX için LibreOffice seçilebilir)";
-            LibreOfficeStatusText.Foreground = System.Windows.Media.Brushes.Khaki;
-        }
+        // Harici Motor Kontrolleri (UI thread'i kilitlememesi için arka planda tara)
+        LibreOfficeStatusText.Text = "ℹ Kontrol ediliyor...";
+        FfmpegStatusText.Text = "ℹ Kontrol ediliyor...";
+        NativeEnginesStatusText.Text = "✓ Magick.NET, PdfPig ve SharpCompress hazır";
 
-        var mediaEngine = new MediaEngine(prefs.CustomFfmpegPath);
-        if (mediaEngine.IsAvailable)
+        Task.Run(() =>
         {
-            FfmpegStatusText.Text = $"✓ Hazır ({mediaEngine.ResolveFfmpegPath()})";
-            FfmpegStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
-        }
-        else
-        {
-            FfmpegStatusText.Text = "✕ Bulunamadı (Video & ses dönüşümleri için ffmpeg.exe seçin veya winget ile kurun)";
-            FfmpegStatusText.Foreground = System.Windows.Media.Brushes.IndianRed;
-        }
+            var officeEngine = new OfficeDocumentEngine(prefs.CustomLibreOfficePath);
+            bool officeAvailable = officeEngine.IsAvailable;
+            string? sofficePath = officeAvailable ? officeEngine.ResolveSofficePath() : null;
 
-        string? sevenZip = ArchiveEngine.Resolve7ZipPath();
-        NativeEnginesStatusText.Text = sevenZip != null
-            ? $"✓ Magick.NET, PdfPig, SharpCompress ve 7-Zip ({sevenZip}) hazır"
-            : "✓ Magick.NET, PdfPig ve SharpCompress hazır (ZIP, TAR.GZ, Görsel, PDF, DOCX, QR)";
+            var mediaEngine = new MediaEngine(prefs.CustomFfmpegPath);
+            bool mediaAvailable = mediaEngine.IsAvailable;
+            string? ffmpegPath = mediaAvailable ? mediaEngine.ResolveFfmpegPath() : null;
+
+            string? sevenZip = ArchiveEngine.Resolve7ZipPath();
+
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (officeAvailable)
+                {
+                    LibreOfficeStatusText.Text = $"✓ Hazır ({sofficePath})";
+                    LibreOfficeStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
+                }
+                else
+                {
+                    LibreOfficeStatusText.Text = "ℹ Kurulu değil (TXT/DOCX/HTML/PDF yerel motoru aktif; PPTX/XLSX için LibreOffice seçilebilir)";
+                    LibreOfficeStatusText.Foreground = System.Windows.Media.Brushes.Khaki;
+                }
+
+                if (mediaAvailable)
+                {
+                    FfmpegStatusText.Text = $"✓ Hazır ({ffmpegPath})";
+                    FfmpegStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
+                }
+                else
+                {
+                    FfmpegStatusText.Text = "✕ Bulunamadı (Video & ses dönüşümleri için ffmpeg.exe seçin veya winget ile kurun)";
+                    FfmpegStatusText.Foreground = System.Windows.Media.Brushes.IndianRed;
+                }
+
+                NativeEnginesStatusText.Text = sevenZip != null
+                    ? $"✓ Magick.NET, PdfPig, SharpCompress ve 7-Zip ({sevenZip}) hazır"
+                    : "✓ Magick.NET, PdfPig ve SharpCompress hazır (ZIP, TAR.GZ, Görsel, PDF, DOCX, QR)";
+            });
+        });
     }
 
     private void OnScaleSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
