@@ -10,6 +10,7 @@ using Donustur.Core.Services;
 using Donustur.Core.Transactions;
 using Donustur.Core.Utils;
 using Donustur.Engine;
+using Donustur.Engine.Media;
 using Donustur.Engine.Qr;
 using Donustur.UI.Services;
 using Donustur.UI.Windows;
@@ -49,7 +50,11 @@ public partial class MainWindow : Window
         _preferencesStore.Changed += _ => Dispatcher.Invoke(UpdateWheelStatusDisplay);
         _historyStore.Changed += () => Dispatcher.Invoke(RenderHistory);
 
-        Loaded += (_, _) => RenderHistory();
+        Loaded += (_, _) =>
+        {
+            RenderHistory();
+            CheckAndEnsureFfmpegOnStartup();
+        };
         Closing += OnWindowClosing;
     }
 
@@ -61,6 +66,52 @@ public partial class MainWindow : Window
             ? new SolidColorBrush(Color.FromRgb(16, 185, 129))
             : new SolidColorBrush(Color.FromRgb(156, 163, 175));
         WheelStatusLabel.Text = enabled ? $"Çark: {mod} (Aktif)" : "Çark: Kapalı";
+    }
+
+    private void CheckAndEnsureFfmpegOnStartup()
+    {
+        _ = Task.Run(async () =>
+        {
+            var mediaEngine = new MediaEngine(_preferencesStore.Current.CustomFfmpegPath);
+            string? found = mediaEngine.ResolveFfmpegPath();
+            if (found != null)
+            {
+                return;
+            }
+
+            // Bilgisayarda FFmpeg bulunamadı, kullanıcıya bildir ve otomatik kurulumu arka planda başlat
+            _ = Dispatcher.BeginInvoke(() =>
+            {
+                FooterStatusLabel.Text = "ℹ Video & ses dönüşümleri için FFmpeg taranıyor / indiriliyor...";
+            });
+
+            var progress = new Progress<string>(msg =>
+            {
+                _ = Dispatcher.BeginInvoke(() =>
+                {
+                    FooterStatusLabel.Text = $"📥 {msg}";
+                });
+            });
+
+            string? installedPath = await FfmpegInstaller.EnsureOrInstallFfmpegAsync(mediaEngine, progress);
+            _ = Dispatcher.BeginInvoke(() =>
+            {
+                if (installedPath != null)
+                {
+                    FooterStatusLabel.Text = $"✓ FFmpeg hazırlandı ({Path.GetFileName(installedPath)}). Video ve ses dönüşümleri aktif!";
+                    if (string.IsNullOrWhiteSpace(_preferencesStore.Current.CustomFfmpegPath))
+                    {
+                        var prefs = _preferencesStore.Current;
+                        prefs.CustomFfmpegPath = installedPath;
+                        _preferencesStore.Save(prefs);
+                    }
+                }
+                else
+                {
+                    FooterStatusLabel.Text = "ℹ FFmpeg otomatik kurulamadı. Ayarlar ekranından manuel yükleyebilirsiniz.";
+                }
+            });
+        });
     }
 
     private void OnToggleWheelClick(object sender, RoutedEventArgs e)

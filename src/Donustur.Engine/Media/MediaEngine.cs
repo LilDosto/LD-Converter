@@ -34,12 +34,16 @@ public sealed class MediaEngine
 
         string[] candidatePaths =
         {
+            Path.Combine(localAppData, @"LDConverter\tools\ffmpeg.exe"),
             Path.Combine(baseDir, "tools", "ffmpeg.exe"),
             Path.Combine(baseDir, "ffmpeg.exe"),
+            Path.Combine(localAppData, @"Microsoft\WindowsApps\ffmpeg.exe"),
             Path.Combine(localAppData, @"Microsoft\WinGet\Links\ffmpeg.exe"),
             Path.Combine(userProfile, @"scoop\shims\ffmpeg.exe"),
             @"C:\ffmpeg\bin\ffmpeg.exe",
+            @"C:\ffmpeg\ffmpeg.exe",
             @"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+            @"C:\Program Files\ffmpeg\ffmpeg.exe",
             @"C:\ProgramData\chocolatey\bin\ffmpeg.exe"
         };
 
@@ -49,17 +53,22 @@ public sealed class MediaEngine
                 return path;
         }
 
-        // WinGet paket klasörlerini dinamik tara
+        // WinGet paket klasörlerini dinamik ve güvenli (hata fırlatmayan) tara
         string wingetPackages = Path.Combine(localAppData, @"Microsoft\WinGet\Packages");
         if (Directory.Exists(wingetPackages))
         {
             try
             {
-                foreach (var pkgDir in Directory.EnumerateDirectories(wingetPackages, "*FFmpeg*"))
+                foreach (var pkgDir in Directory.EnumerateDirectories(wingetPackages))
                 {
-                    var found = Directory.EnumerateFiles(pkgDir, "ffmpeg.exe", SearchOption.AllDirectories).FirstOrDefault();
-                    if (found != null)
-                        return found;
+                    string dirName = Path.GetFileName(pkgDir);
+                    if (dirName.Contains("ffmpeg", StringComparison.OrdinalIgnoreCase) ||
+                        dirName.Contains("gyan", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var found = SafeFindFile(pkgDir, "ffmpeg.exe", maxDepth: 4);
+                        if (found != null)
+                            return found;
+                    }
                 }
             }
             catch
@@ -68,18 +77,54 @@ public sealed class MediaEngine
             }
         }
 
-        string? pathEnv = Environment.GetEnvironmentVariable("PATH");
-        if (pathEnv != null)
+        // PATH çevre değişkenlerini Process, User ve Machine seviyelerinde kontrol et
+        var pathTargets = new[] { EnvironmentVariableTarget.Process, EnvironmentVariableTarget.User, EnvironmentVariableTarget.Machine };
+        foreach (var target in pathTargets)
         {
-            foreach (var segment in pathEnv.Split(Path.PathSeparator))
+            try
             {
-                if (string.IsNullOrWhiteSpace(segment)) continue;
-                string combined = Path.Combine(segment.Trim(), "ffmpeg.exe");
-                if (File.Exists(combined))
-                    return combined;
+                string? pathEnv = Environment.GetEnvironmentVariable("PATH", target);
+                if (pathEnv != null)
+                {
+                    foreach (var segment in pathEnv.Split(Path.PathSeparator))
+                    {
+                        if (string.IsNullOrWhiteSpace(segment)) continue;
+                        string combined = Path.Combine(segment.Trim(), "ffmpeg.exe");
+                        if (File.Exists(combined))
+                            return combined;
+                    }
+                }
+            }
+            catch
+            {
+                // Sessizce geç
             }
         }
 
+        return null;
+    }
+
+    private static string? SafeFindFile(string rootDir, string targetFileName, int maxDepth)
+    {
+        if (!Directory.Exists(rootDir) || maxDepth < 0) return null;
+        try
+        {
+            string direct = Path.Combine(rootDir, targetFileName);
+            if (File.Exists(direct)) return direct;
+
+            string inBin = Path.Combine(rootDir, "bin", targetFileName);
+            if (File.Exists(inBin)) return inBin;
+
+            foreach (var subDir in Directory.EnumerateDirectories(rootDir))
+            {
+                var found = SafeFindFile(subDir, targetFileName, maxDepth - 1);
+                if (found != null) return found;
+            }
+        }
+        catch
+        {
+            // Erişim izin hatalarını yut
+        }
         return null;
     }
 
@@ -87,6 +132,7 @@ public sealed class MediaEngine
 
     /// <summary>
     /// Video veya ses dosyasını hedef formata dönüştürür.
+    /// FFmpeg eksikse otomatik kurulum dener; bulunamazsa kullanıcıya yol gösterir.
     /// </summary>
     public async Task<IReadOnlyList<string>> ConvertMediaAsync(
         IReadOnlyList<string> inputFiles,
@@ -99,8 +145,14 @@ public sealed class MediaEngine
         string? ffmpegPath = ResolveFfmpegPath();
         if (ffmpegPath == null)
         {
+            // Eksikse son anda otomatik kurulumu tetikle
+            ffmpegPath = await FfmpegInstaller.EnsureOrInstallFfmpegAsync(this, null, token);
+        }
+
+        if (ffmpegPath == null)
+        {
             throw new FileNotFoundException(
-                "FFmpeg bulunamadı. Medya dönüştürme için FFmpeg gereklidir. Lütfen Ayarlar ekranından ffmpeg.exe yolunu seçin veya 'winget install Gyan.FFmpeg' komutuyla yükleyin.");
+                "FFmpeg bulunamadı ve otomatik indirilemedi. Video & ses dönüştürmeleri için lütfen Ayarlar ekranından FFmpeg indir butonuna tıklayın veya ffmpeg.exe yolunu seçin.");
         }
 
         var outputFiles = new List<string>();

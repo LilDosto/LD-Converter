@@ -15,6 +15,7 @@ public partial class SettingsWindow : Window
     private const string AppName = "LDConverter";
 
     private readonly PreferencesStore _preferencesStore;
+    private string? _customPandocPath;
 
     public SettingsWindow(PreferencesStore preferencesStore)
     {
@@ -30,6 +31,7 @@ public partial class SettingsWindow : Window
     private void LoadValues()
     {
         var prefs = _preferencesStore.Current;
+        _customPandocPath = prefs.CustomPandocPath;
 
         EnableWheelCheck.IsChecked = prefs.Enabled;
 
@@ -69,17 +71,23 @@ public partial class SettingsWindow : Window
         // Harici Motor Kontrolleri (UI thread'i kilitlememesi için arka planda tara)
         LibreOfficeStatusText.Text = "ℹ Kontrol ediliyor...";
         FfmpegStatusText.Text = "ℹ Kontrol ediliyor...";
+        PandocStatusText.Text = "ℹ Kontrol ediliyor...";
         NativeEnginesStatusText.Text = "✓ Magick.NET, PdfPig ve SharpCompress hazır";
 
         Task.Run(() =>
         {
-            var officeEngine = new OfficeDocumentEngine(prefs.CustomLibreOfficePath);
+            var officeEngine = new OfficeDocumentEngine(prefs.CustomLibreOfficePath, _customPandocPath);
             bool officeAvailable = officeEngine.IsAvailable;
             string? sofficePath = officeAvailable ? officeEngine.ResolveSofficePath() : null;
 
             var mediaEngine = new MediaEngine(prefs.CustomFfmpegPath);
             bool mediaAvailable = mediaEngine.IsAvailable;
             string? ffmpegPath = mediaAvailable ? mediaEngine.ResolveFfmpegPath() : null;
+
+            var pandocEngine = new PandocEngine(_customPandocPath);
+            bool pandocAvailable = pandocEngine.IsAvailable;
+            string? pandocPath = pandocAvailable ? pandocEngine.ResolvePandocPath() : null;
+            string? pdfEngine = pandocAvailable ? pandocEngine.ResolvePdfEngine() : null;
 
             string? sevenZip = ArchiveEngine.Resolve7ZipPath();
 
@@ -100,11 +108,27 @@ public partial class SettingsWindow : Window
                 {
                     FfmpegStatusText.Text = $"✓ Hazır ({ffmpegPath})";
                     FfmpegStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
+                    InstallFfmpegBtn.Visibility = Visibility.Collapsed;
                 }
                 else
                 {
-                    FfmpegStatusText.Text = "✕ Bulunamadı (Video & ses dönüşümleri için ffmpeg.exe seçin veya winget ile kurun)";
+                    FfmpegStatusText.Text = "✕ Bulunamadı (Video & ses dönüşümleri için FFmpeg gereklidir)";
                     FfmpegStatusText.Foreground = System.Windows.Media.Brushes.IndianRed;
+                    InstallFfmpegBtn.Visibility = Visibility.Visible;
+                }
+
+                if (pandocAvailable)
+                {
+                    string engineInfo = pdfEngine != null ? $" [PDF Motoru: {pdfEngine}]" : "";
+                    PandocStatusText.Text = $"✓ Hazır ({pandocPath}){engineInfo}";
+                    PandocStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
+                    InstallPandocBtn.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    PandocStatusText.Text = "ℹ Kurulu değil (Markdown & LaTeX denklem dönüşümleri için kurabilirsiniz)";
+                    PandocStatusText.Foreground = System.Windows.Media.Brushes.Khaki;
+                    InstallPandocBtn.Visibility = Visibility.Visible;
                 }
 
                 NativeEnginesStatusText.Text = sevenZip != null
@@ -182,6 +206,74 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private async void OnInstallFfmpegClick(object sender, RoutedEventArgs e)
+    {
+        InstallFfmpegBtn.IsEnabled = false;
+        FfmpegStatusText.Text = "📥 FFmpeg indiriliyor ve kuruluyor...";
+        FfmpegStatusText.Foreground = System.Windows.Media.Brushes.Khaki;
+
+        var progress = new Progress<string>(msg =>
+        {
+            Dispatcher.BeginInvoke(() => FfmpegStatusText.Text = msg);
+        });
+
+        var mediaEngine = new MediaEngine(_preferencesStore.Current.CustomFfmpegPath);
+        string? result = await FfmpegInstaller.EnsureOrInstallFfmpegAsync(mediaEngine, progress);
+
+        if (result != null)
+        {
+            var prefs = _preferencesStore.Current;
+            prefs.CustomFfmpegPath = result;
+            _preferencesStore.Save(prefs);
+        }
+
+        InstallFfmpegBtn.IsEnabled = true;
+        LoadValues();
+    }
+
+    private void OnBrowsePandocClick(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "pandoc.exe|pandoc.exe|Tüm Dosyalar (*.*)|*.*",
+            Title = "Pandoc pandoc.exe dosyasını seçin"
+        };
+        if (dlg.ShowDialog() == true)
+        {
+            _customPandocPath = dlg.FileName;
+            var prefs = _preferencesStore.Current;
+            prefs.CustomPandocPath = dlg.FileName;
+            _preferencesStore.Save(prefs);
+            LoadValues();
+        }
+    }
+
+    private async void OnInstallPandocClick(object sender, RoutedEventArgs e)
+    {
+        InstallPandocBtn.IsEnabled = false;
+        PandocStatusText.Text = "📥 Pandoc indiriliyor ve kuruluyor...";
+        PandocStatusText.Foreground = System.Windows.Media.Brushes.Khaki;
+
+        var progress = new Progress<string>(msg =>
+        {
+            Dispatcher.BeginInvoke(() => PandocStatusText.Text = msg);
+        });
+
+        var pandocEngine = new PandocEngine(_customPandocPath);
+        string? result = await PandocInstaller.EnsureOrInstallPandocAsync(pandocEngine, progress);
+
+        if (result != null)
+        {
+            _customPandocPath = result;
+            var prefs = _preferencesStore.Current;
+            prefs.CustomPandocPath = result;
+            _preferencesStore.Save(prefs);
+        }
+
+        InstallPandocBtn.IsEnabled = true;
+        LoadValues();
+    }
+
     private void OnStartupToggle(object sender, RoutedEventArgs e)
     {
         SetStartupEnabled(RunAtStartupCheck.IsChecked == true);
@@ -236,6 +328,7 @@ public partial class SettingsWindow : Window
         prefs.MinimizeToTray = MinimizeToTrayCheck.IsChecked == true;
         prefs.AutoOpenOutputFolder = AutoOpenCheck.IsChecked == true;
         prefs.RunAtStartup = RunAtStartupCheck.IsChecked == true;
+        prefs.CustomPandocPath = _customPandocPath;
 
         prefs.OutputDirectoryMode = OutputModeCombo.SelectedIndex switch
         {

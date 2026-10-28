@@ -392,3 +392,49 @@ public class QrEngineTests
         }
     }
 }
+
+
+public class PandocEngineTests
+{
+    [Fact]
+    public void PandocEngine_ResolvesCustomPathWhenProvided()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var engine = new PandocEngine(tempFile);
+            Assert.Equal(tempFile, engine.ResolvePandocPath());
+            Assert.True(engine.IsAvailable);
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+}
+
+public class FfmpegResolutionTests
+{
+    [Fact]
+    public void WingetOrSystemFfmpeg_CanBeResolved()
+    {
+        var mediaEngine = new Donustur.Engine.Media.MediaEngine();
+        string? resolved = mediaEngine.ResolveFfmpegPath();
+        if (resolved != null)
+        {
+            Assert.True(File.Exists(resolved));
+            Assert.EndsWith("ffmpeg.exe", resolved, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void WingetPath_CanBeResolvedIfInstalled()
+    {
+        string? winget = Donustur.Engine.Media.FfmpegInstaller.ResolveWingetPath();
+        if (winget != null)
+        {
+            Assert.True(File.Exists(winget));
+            Assert.EndsWith("winget.exe", winget, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+}

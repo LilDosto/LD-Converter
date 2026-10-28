@@ -12,16 +12,25 @@ namespace Donustur.Engine.Documents;
 public sealed class OfficeDocumentEngine
 {
     private string? _customPath;
+    private readonly PandocEngine _pandocEngine = new();
 
-    public OfficeDocumentEngine(string? customPath = null)
+    public OfficeDocumentEngine(string? customPath = null, string? customPandocPath = null)
     {
         _customPath = customPath;
+        _pandocEngine.SetCustomPath(customPandocPath);
     }
 
     public void SetCustomPath(string? customPath)
     {
         _customPath = customPath;
     }
+
+    public void SetCustomPandocPath(string? customPandocPath)
+    {
+        _pandocEngine.SetCustomPath(customPandocPath);
+    }
+
+    public PandocEngine Pandoc => _pandocEngine;
 
     /// <summary>
     /// LibreOffice soffice.exe yolunu bulur.
@@ -96,24 +105,36 @@ public sealed class OfficeDocumentEngine
 
             string? generatedPath = null;
 
-            // 1. Öncelik: LibreOffice kuruluysa izole profil ile çalıştır
-            if (sofficePath != null)
+            // 1. Öncelik: Markdown belgelerinde veya denklem içeren metinlerde Pandoc (XeLaTeX & LaTeX math desteği)
+            if (sourceExt is "md" or "markdown" && _pandocEngine.IsAvailable)
+            {
+                generatedPath = await _pandocEngine.ConvertAsync(inputFile, formatKey, transaction, token);
+            }
+
+            // 2. Öncelik: LibreOffice kuruluysa izole profil ile çalıştır
+            if ((generatedPath == null || !File.Exists(generatedPath)) && sofficePath != null)
             {
                 generatedPath = await TryConvertWithLibreOfficeAsync(sofficePath, inputFile, formatKey, transaction, token);
             }
 
-            // 2. Yedek: Yerel dönüştürücü (TXT, MD, HTML, DOCX <-> PDF, DOCX, TXT, HTML)
+            // 3. Pandoc diğer formatlarda da alternatif olarak denenebilir
+            if ((generatedPath == null || !File.Exists(generatedPath)) && _pandocEngine.IsAvailable)
+            {
+                generatedPath = await _pandocEngine.ConvertAsync(inputFile, formatKey, transaction, token);
+            }
+
+            // 4. Yedek: Yerel dönüştürücü (TXT, MD, HTML, DOCX <-> PDF, DOCX, TXT, HTML)
             if (generatedPath == null || !File.Exists(generatedPath))
             {
                 if (CanConvertNatively(sourceExt, formatKey))
                 {
                     generatedPath = await Task.Run(() => ConvertNatively(inputFile, sourceExt, formatKey, transaction), token);
                 }
-                else if (sofficePath == null)
+                else if (sofficePath == null && !_pandocEngine.IsAvailable)
                 {
                     throw new FileNotFoundException(
-                        $"'{sourceExt.ToUpperInvariant()} → {formatKey.ToUpperInvariant()}' dönüşümü için LibreOffice gereklidir. " +
-                        "Lütfen LibreOffice'i yükleyin (www.libreoffice.org) veya Ayarlar ekranından soffice.exe yolunu belirtin.");
+                        $"'{sourceExt.ToUpperInvariant()} → {formatKey.ToUpperInvariant()}' dönüşümü için LibreOffice veya Pandoc gereklidir. " +
+                        "Lütfen LibreOffice ya da Pandoc yükleyin veya Ayarlar ekranından soffice.exe / pandoc.exe yolunu belirtin.");
                 }
                 else
                 {
@@ -242,7 +263,9 @@ public sealed class OfficeDocumentEngine
         sb.AppendLine("  <meta charset=\"UTF-8\">");
         sb.AppendLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
         sb.AppendLine($"  <title>{WebUtility.HtmlEncode(title)}</title>");
-        sb.AppendLine("  <style>body{font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;max-width:800px;margin:40px auto;padding:0 20px;color:#1f2937;background:#ffffff;}p{margin:0 0 12px 0;white-space:pre-wrap;}</style>");
+        sb.AppendLine("  <style>body{font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;max-width:800px;margin:40px auto;padding:0 20px;color:#1f2937;background:#ffffff;}p{margin:0 0 12px 0;white-space:pre-wrap;}code{background:#f3f4f6;padding:2px 6px;border-radius:4px;font-family:monospace;}</style>");
+        sb.AppendLine("  <script>window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']] } };</script>");
+        sb.AppendLine("  <script id=\"MathJax-script\" async src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js\"></script>");
         sb.AppendLine("</head>");
         sb.AppendLine("<body>");
 

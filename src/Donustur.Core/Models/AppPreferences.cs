@@ -14,5 +14,6 @@ public sealed class AppPreferences
     public bool AutoOpenOutputFolder { get; set; } = false;
     public string? CustomFfmpegPath { get; set; }
     public string? CustomLibreOfficePath { get; set; }
+    public string? CustomPandocPath { get; set; }
     public int DefaultImageQuality { get; set; } = 85;
 }

@@ -321,14 +321,43 @@
 
                     <!-- FFmpeg -->
                     <DockPanel Margin="0,0,0,8">
-                        <Button Content="ffmpeg.exe Seç..." DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#2D3548" Foreground="#FFFFFF" BorderThickness="0" Padding="10,5" Cursor="Hand" Click="OnBrowseFfmpegClick">
-                            <Button.Resources>
-                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
-                            </Button.Resources>
-                        </Button>
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button x:Name="InstallFfmpegBtn" Content="📥 İndir &amp; Kur" Background="#4F46E5" Foreground="#FFFFFF" BorderThickness="0" Padding="10,5" Margin="0,0,6,0" Cursor="Hand" Click="OnInstallFfmpegClick">
+                                <Button.Resources>
+                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                </Button.Resources>
+                            </Button>
+                            <Button Content="ffmpeg.exe Seç..." Background="#2D3548" Foreground="#FFFFFF" BorderThickness="0" Padding="10,5" Cursor="Hand" Click="OnBrowseFfmpegClick">
+                                <Button.Resources>
+                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
                         <StackPanel>
                             <TextBlock Text="FFmpeg (Video &amp; Ses Motoru)" Style="{StaticResource SettingLabel}"/>
                             <TextBlock x:Name="FfmpegStatusText" Text="Kontrol ediliyor..." Style="{StaticResource SettingDesc}" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <Separator Background="#2D3343" Margin="0,4,0,10"/>
+
+                    <!-- Pandoc -->
+                    <DockPanel Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button x:Name="InstallPandocBtn" Content="📥 İndir &amp; Kur" Background="#4F46E5" Foreground="#FFFFFF" BorderThickness="0" Padding="10,5" Margin="0,0,6,0" Cursor="Hand" Click="OnInstallPandocClick">
+                                <Button.Resources>
+                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                </Button.Resources>
+                            </Button>
+                            <Button Content="pandoc.exe Seç..." Background="#2D3548" Foreground="#FFFFFF" BorderThickness="0" Padding="10,5" Cursor="Hand" Click="OnBrowsePandocClick">
+                                <Button.Resources>
+                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Pandoc &amp; XeLaTeX (Markdown &amp; Matematik Denklem Motoru)" Style="{StaticResource SettingLabel}"/>
+                            <TextBlock x:Name="PandocStatusText" Text="Kontrol ediliyor..." Style="{StaticResource SettingDesc}" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </DockPanel>
 

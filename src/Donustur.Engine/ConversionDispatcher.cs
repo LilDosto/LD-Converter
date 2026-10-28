@@ -23,7 +23,7 @@ public sealed class ConversionDispatcher
 
     public ConversionDispatcher(AppPreferences preferences, HistoryStore? historyStore = null)
     {
-        _officeEngine = new OfficeDocumentEngine(preferences.CustomLibreOfficePath);
+        _officeEngine = new OfficeDocumentEngine(preferences.CustomLibreOfficePath, preferences.CustomPandocPath);
         _mediaEngine = new MediaEngine(preferences.CustomFfmpegPath);
         _historyStore = historyStore;
     }
@@ -40,6 +40,7 @@ public sealed class ConversionDispatcher
 
             // Ayarlar ekranından değiştirilmiş olabilecek harici motor yollarını senkronize et
             _officeEngine.SetCustomPath(preferences.CustomLibreOfficePath);
+            _officeEngine.SetCustomPandocPath(preferences.CustomPandocPath);
             _mediaEngine.SetCustomPath(preferences.CustomFfmpegPath);
 
             if (preferences.DefaultImageQuality is >= 10 and <= 100 && task.Options.ImageQuality == 85)
