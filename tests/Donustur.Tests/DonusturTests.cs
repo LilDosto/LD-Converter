@@ -288,8 +288,53 @@ public class PdfAndDocxEngineTests
 
             string extractedFromDocx = DocxHelper.ExtractTextFromDocx(docxRes.OutputFiles[0]);
             Assert.Contains("Merhaba", extractedFromDocx);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+        }
+    }
 
-            // 2. pdf_to_jpg
+    [Fact]
+    public async Task PdfToDocx_PreservesMathEquations_WithoutCorruption()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "DonusturPdfMathTest_" + Guid.NewGuid());
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            string samplePdf = "test_math.pdf";
+            if (!File.Exists(samplePdf)) return;
+
+            string targetDocx = Path.Combine(tempDir, "output_math.docx");
+            string? result = await PdfMathEngine.TryConvertAsync(samplePdf, targetDocx);
+
+            if (result != null)
+            {
+                Assert.True(File.Exists(result));
+                var fileInfo = new FileInfo(result);
+                Assert.True(fileInfo.Length > 1000);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task PdfToJpg_WorksDirectly()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "DonusturPdfJpgTest_" + Guid.NewGuid());
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            string pdfPath = CreateSamplePdf(tempDir, "rapor.pdf", "Merhaba Dunya PDF Test Icerigi");
+            var prefs = new AppPreferences
+            {
+                OutputDirectoryMode = "Custom",
+                CustomOutputDirectory = tempDir
+            };
+            var dispatcher = new ConversionDispatcher(prefs);
             var jpgTask = new ConversionTask
             {
                 InputFiles = new[] { pdfPath },

@@ -161,6 +161,8 @@ public sealed class PdfEngine
 
     /// <summary>
     /// PDF belgesini Word (.docx) belgesine dönüştürür.
+    /// Matematik denklemleri, karmaşık formüller, kesirler ve sembolleri bozmadan
+    /// yüksek sadakatle koruyan akıllı formül motorunu öncelikli olarak kullanır.
     /// </summary>
     public async Task<string> ConvertToDocxAsync(
         string inputPdf,
@@ -171,6 +173,14 @@ public sealed class PdfEngine
         string outName = Path.GetFileNameWithoutExtension(inputPdf) + ".docx";
         string outPath = SafePaths.GetUniquePath(transaction.StagingDirectory, outName);
 
+        // 1. Akıllı Formül & Matematik Koruyucu Motor
+        string? smartResult = await PdfMathEngine.TryConvertAsync(inputPdf, outPath, progress, token);
+        if (smartResult != null && File.Exists(smartResult))
+        {
+            return smartResult;
+        }
+
+        // 2. Yedek yerel motor (PdfPig)
         await Task.Run(() =>
         {
             using var document = UglyToad.PdfPig.PdfDocument.Open(inputPdf);

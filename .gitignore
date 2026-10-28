@@ -6,6 +6,10 @@
 *.zip
 dist/
 LD-Converter-*-Setup.exe
+tools/*.exe
+publish/tools/*.exe
+temp_out/
+test_math.pdf
 
 # Visual Studio / Rider / VS Code caches
 .vs/
