@@ -12,12 +12,14 @@ public sealed record EngineStatusReport(
     bool PandocAvailable,
     string? PandocPath,
     bool LibreOfficeAvailable,
-    string? LibreOfficePath
+    string? LibreOfficePath,
+    bool XelatexAvailable = false,
+    string? XelatexPath = null
 )
 {
-    public bool AllInstalled => FfmpegAvailable && SevenZipAvailable && PandocAvailable && LibreOfficeAvailable;
-    public int InstalledCount => (FfmpegAvailable ? 1 : 0) + (SevenZipAvailable ? 1 : 0) + (PandocAvailable ? 1 : 0) + (LibreOfficeAvailable ? 1 : 0);
-    public int TotalCount => 4;
+    public bool AllInstalled => FfmpegAvailable && SevenZipAvailable && PandocAvailable && LibreOfficeAvailable && XelatexAvailable;
+    public int InstalledCount => (FfmpegAvailable ? 1 : 0) + (SevenZipAvailable ? 1 : 0) + (PandocAvailable ? 1 : 0) + (LibreOfficeAvailable ? 1 : 0) + (XelatexAvailable ? 1 : 0);
+    public int TotalCount => 5;
 }
 
 public static class AllEnginesManager
@@ -35,6 +37,7 @@ public static class AllEnginesManager
         string? sevenZipPath = ArchiveEngine.Resolve7ZipPath();
         string? pandocPath = pandocEngine?.ResolvePandocPath() ?? (new PandocEngine()).ResolvePandocPath();
         string? libreOfficePath = officeEngine?.ResolveSofficePath() ?? (new OfficeDocumentEngine()).ResolveSofficePath();
+        string? xelatexPath = pandocEngine?.ResolvePdfEngine() ?? (new PandocEngine()).ResolvePdfEngine();
 
         return new EngineStatusReport(
             FfmpegAvailable: ffmpegPath != null,
@@ -44,13 +47,15 @@ public static class AllEnginesManager
             PandocAvailable: pandocPath != null,
             PandocPath: pandocPath,
             LibreOfficeAvailable: libreOfficePath != null,
-            LibreOfficePath: libreOfficePath
+            LibreOfficePath: libreOfficePath,
+            XelatexAvailable: xelatexPath != null,
+            XelatexPath: xelatexPath
         );
     }
 
     /// <summary>
     /// Eksik olan tüm dönüştürme motorlarını arka planda tarar ve indirir/kurar.
-    /// FFmpeg, 7-Zip, Pandoc ve LibreOffice kontrol edilir.
+    /// FFmpeg, 7-Zip, Pandoc, XeLaTeX (TinyTeX) ve LibreOffice kontrol edilir.
     /// </summary>
     public static Task<EngineStatusReport> EnsureAllEnginesAsync(
         MediaEngine mediaEngine,
@@ -120,12 +125,25 @@ public static class AllEnginesManager
                     }
                 }
 
-                // 4. LibreOffice Kontrolü (Büyük ofis belgeleri motoru)
+                // 4. XeLaTeX / TinyTeX Kontrolü (Gelişmiş Matematik Formülü ve PDF Derleme Motoru)
+                if (!initialStatus.XelatexAvailable)
+                {
+                    try
+                    {
+                        progress?.Report("XeLaTeX matematik motoru kontrol ediliyor...");
+                        await TinyTexInstaller.EnsureOrInstallXelatexAsync(pandocEngine, progress, token);
+                    }
+                    catch (Exception ex)
+                    {
+                        progress?.Report($"XeLaTeX kontrolü atlandı: {ex.Message}");
+                    }
+                }
+
+                // 5. LibreOffice Kontrolü (Büyük ofis belgeleri motoru)
                 if (!initialStatus.LibreOfficeAvailable)
                 {
                     try
                     {
-                        // LibreOffice büyük paket olduğu için winget mevcutsa arka planda başlatılır
                         progress?.Report("LibreOffice motoru kontrol ediliyor...");
                         await LibreOfficeInstaller.EnsureOrInstallLibreOfficeAsync(officeEngine, progress, token);
                     }

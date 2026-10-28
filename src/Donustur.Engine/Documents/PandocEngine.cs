@@ -97,15 +97,36 @@ public sealed class PandocEngine
 
     /// <summary>
     /// Sistemde xelatex, pdflatex veya alternatif bir pdf-engine motoru olup olmadığını tespit eder.
+    /// TinyTeX, MiKTeX ve sistem PATH yollarını öncelikli olarak tarar.
     /// </summary>
     public string? ResolvePdfEngine()
     {
+        string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        string progFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+
+        string[] specificPaths =
+        {
+            Path.Combine(appData, @"TinyTeX\bin\windows\xelatex.exe"),
+            Path.Combine(progFiles, @"MiKTeX\miktex\bin\x64\xelatex.exe"),
+            Path.Combine(progFilesX86, @"MiKTeX\miktex\bin\xelatex.exe"),
+            Path.Combine(localAppData, @"Programs\MiKTeX\miktex\bin\x64\xelatex.exe"),
+            Path.Combine(appData, @"TinyTeX\bin\windows\pdflatex.exe")
+        };
+
+        foreach (var p in specificPaths)
+        {
+            if (File.Exists(p)) return p;
+        }
+
         string[] candidates = { "xelatex", "pdflatex", "lualatex", "typst", "weasyprint", "wkhtmltopdf" };
         foreach (var eng in candidates)
         {
-            if (FindExecutableInPath(eng + ".exe") != null)
+            string? foundInPath = FindExecutableInPath(eng + ".exe");
+            if (foundInPath != null)
             {
-                return eng;
+                return foundInPath;
             }
         }
         return null;
@@ -164,7 +185,7 @@ public sealed class PandocEngine
         {
             // Kullanıcının paylaştığı kusursuz parametreler:
             // pandoc "belge.md" -o "belge.pdf" --pdf-engine=xelatex -V mainfont="Arial" -V geometry:margin=2.5cm
-            string engineParam = pdfEngine != null ? $"--pdf-engine={pdfEngine}" : "";
+            string engineParam = pdfEngine != null ? $"--pdf-engine=\"{pdfEngine}\"" : "";
             arguments = $"\"{inputFile}\" -o \"{outputPath}\" {engineParam} -V mainfont=\"Arial\" -V geometry:margin=2.5cm".Trim();
         }
         else

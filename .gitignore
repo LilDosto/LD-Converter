@@ -4,7 +4,12 @@
 [Ll]og/
 [Ll]ogs/
 *.zip
+# Python PyInstaller artifacts
+build/
 dist/
+publish/
+*.spec
+*.docx
 LD-Converter-*-Setup.exe
 tools/*.exe
 publish/tools/*.exe
