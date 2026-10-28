@@ -1,5 +1,8 @@
 # LD Converter 🚀
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Release](https://img.shields.io/github/v/release/LilDosto/LD-Converter)](https://github.com/LilDosto/LD-Converter/releases)
+
 > **Yeni Nesil, Optimize & Akıcı Dosya Dönüştürme Aracı**  
 > .NET 8, WPF ve modern asenkron mimari ile tasarlanmış yüksek performanslı masaüstü dosya dönüştürücü.
 
@@ -42,3 +45,10 @@ dotnet run --project src/Donustur.UI/Donustur.UI.csproj
 ```bash
 dotnet test
 ```
+
+---
+
+## 📄 Lisans
+
+Bu proje **[MIT Lisansı](LICENSE)** ile lisanslanmıştır. Daha fazla bilgi için [LICENSE](LICENSE) dosyasına göz atabilirsiniz.
+
