@@ -4,11 +4,33 @@ import fitz
 import docx
 from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.oxml import parse_xml
-import subprocess
-import zipfile
-import io
-import re
+import lxml.etree as ET
+from latex2mathml.converter import convert as latex_to_mathml
+
+def get_xsl_path():
+    if hasattr(sys, '_MEIPASS'):
+        p = os.path.join(sys._MEIPASS, 'MML2OMML.XSL')
+        if os.path.exists(p): return p
+    base = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(base, 'MML2OMML.XSL'),
+        os.path.join(base, 'tools', 'MML2OMML.XSL'),
+        r'C:\Program Files\Microsoft Office\root\Office16\MML2OMML.XSL',
+        r'C:\Program Files (x86)\Microsoft Office\root\Office16\MML2OMML.XSL',
+    ]
+    for c in candidates:
+        if os.path.exists(c): return c
+    return 'MML2OMML.XSL'
+
+_xslt_transform = None
+def get_xslt_transform():
+    global _xslt_transform
+    if _xslt_transform is None:
+        xsl_path = get_xsl_path()
+        if os.path.exists(xsl_path):
+            xslt_doc = ET.parse(xsl_path)
+            _xslt_transform = ET.XSLT(xslt_doc)
+    return _xslt_transform
 
 MATH_UNICODE_MAP = {
     '𝑚': 'm', '𝑘': 'k', '𝑢': 'u', '𝑖': 'i', '𝑡': 't', '𝑥': 'x', '𝑎': 'a', '𝑤': 'w', '𝑗': 'j', '𝑑': 'd', '𝑉': 'V', '𝐾': 'K', '𝜃': '\\theta',
@@ -21,40 +43,32 @@ MATH_UNICODE_MAP = {
     '̇': '',
 }
 
-def is_math_char(c):
-    return c in "=+-±×÷∑∫√∂≤≥≠≈→⇒∞παβγδεθλμστφψω\u2212\u2211\u222b\u221a¿_{}^°′″𝑚𝑘𝑢𝑖𝑡𝑥𝑎𝑤𝑗𝑑𝑉𝐾𝜃𝝆𝑨𝑬𝜓Δ⏟"
-
 def clean_math_unicode(text):
     for k, v in MATH_UNICODE_MAP.items():
         text = text.replace(k, v)
     return text
 
-def latex_to_omml(latex_code):
-    if not latex_code or not latex_code.strip():
-        return None
+def is_math_char(c):
+    return c in "=+-±×÷∑∫√∂≤≥≠≈→⇒∞παβγδεθλμστφψω\u2212\u2211\u222b\u221a¿_{}^°′″𝑚𝑘𝑢𝑖𝑡𝑥𝑎𝑤𝑗𝑑𝑉𝐾𝜃𝝆𝑨𝑬𝜓Δ⏟"
+
+def latex_to_omml(latex_code: str):
+    """LaTeX string'ini Word'ün OMML formatına (MML2OMML.XSL ile) dönüştürür."""
     try:
-        doc_latex = f"\\[\n{latex_code.strip()}\n\\]"
-        res = subprocess.run(
-            ["pandoc", "-f", "latex", "-t", "docx", "-o", "-"],
-            input=doc_latex.encode('utf-8'),
-            capture_output=True,
-            timeout=8
-        )
-        if res.returncode == 0 and len(res.stdout) > 500:
-            with zipfile.ZipFile(io.BytesIO(res.stdout)) as z:
-                xml = z.read("word/document.xml").decode("utf-8")
-                m = re.search(r'<m:oMathPara>.*?</m:oMathPara>', xml)
-                if m:
-                    matched = m.group(0)
-                    omml_ns = matched.replace('<m:oMathPara>', '<m:oMathPara xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">')
-                    return omml_ns
-                m = re.search(r'<m:oMath>.*?</m:oMath>', xml)
-                if m:
-                    matched = m.group(0)
-                    return f'<m:oMathPara xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">{matched}</m:oMathPara>'
+        transform = get_xslt_transform()
+        if transform is None:
+            return None
+        mathml_code = latex_to_mathml(latex_code.strip())
+        mathml_tree = ET.fromstring(mathml_code)
+        omml_tree = transform(mathml_tree)
+        root = omml_tree.getroot()
+        
+        # Word içinde blok formül için m:oMathPara kapsayıcısı
+        ns_m = "http://schemas.openxmlformats.org/officeDocument/2006/math"
+        para = ET.Element(f"{{{ns_m}}}oMathPara")
+        para.append(root)
+        return para
     except Exception:
-        pass
-    return None
+        return None
 
 def formula_text_to_latex(raw_text):
     cleaned = clean_math_unicode(raw_text)
@@ -65,8 +79,8 @@ def formula_text_to_latex(raw_text):
     if ('Sagdaki' in raw_text or 'Soldaki' in raw_text or 'kuvveti' in raw_text) and ('u' in joined or 'k' in joined):
         return (
             r"m \frac{d^2 u_i}{dt^2} = "
-            r"\underbrace{k(u_{i+1} - u_i)}_{\text{Sağdaki yayın kuvveti}} - "
-            r"\underbrace{k(u_i - u_{i-1})}_{\text{Soldaki yayın kuvveti}}"
+            r"\underbrace{k(u_{i+1} - u_i)}_{F_{sag}} - "
+            r"\underbrace{k(u_i - u_{i-1})}_{F_{sol}}"
         )
 
     # 2. Discrete wave equation
@@ -80,20 +94,13 @@ def formula_text_to_latex(raw_text):
     # 4. Taylor series
     if ('ui+1' in joined or 'u_{i+1}' in joined) and ('u(x' in joined or 'u+' in joined) and 'partial' in joined:
         return (
-            r"\begin{aligned}" "\n"
-            r"u_{i+1} &= u(x+a, t) = u + a \frac{\partial u}{\partial x} + \frac{a^2}{2!} \frac{\partial^2 u}{\partial x^2} + \frac{a^3}{3!} \frac{\partial^3 u}{\partial x^3} + \frac{a^4}{4!} \frac{\partial^4 u}{\partial x^4} + \mathcal{O}(a^5) \\" "\n"
-            r"u_{i-1} &= u(x-a, t) = u - a \frac{\partial u}{\partial x} + \frac{a^2}{2!} \frac{\partial^2 u}{\partial x^2} - \frac{a^3}{3!} \frac{\partial^3 u}{\partial x^3} + \frac{a^4}{4!} \frac{\partial^4 u}{\partial x^4} - \mathcal{O}(a^5)" "\n"
-            r"\end{aligned}"
+            r"u_{i+1} = u + a \frac{\partial u}{\partial x} + \frac{a^2}{2!} \frac{\partial^2 u}{\partial x^2} + \frac{a^3}{3!} \frac{\partial^3 u}{\partial x^3} + \frac{a^4}{4!} \frac{\partial^4 u}{\partial x^4}"
         )
 
     # 5. Taylor sum / combinations
     if ('ui+1 + ui-1' in joined or 'ui+1+ui-1' in joined) and ('2u' in joined or '12' in joined):
         return (
-            r"\begin{aligned}" "\n"
-            r"u_{i+1} + u_{i-1} &= 2u + a^2 \frac{\partial^2 u}{\partial x^2} + \frac{a^4}{12} \frac{\partial^4 u}{\partial x^4} + \cdots \\" "\n"
-            r"m \ddot{u} &= k\left(2u + a^2 \frac{\partial^2 u}{\partial x^2} + \frac{a^4}{12} \frac{\partial^4 u}{\partial x^4} - 2u\right) \\" "\n"
-            r"m \ddot{u} &= ka^2 \frac{\partial^2 u}{\partial x^2} + \frac{ka^4}{12} \frac{\partial^4 u}{\partial x^4}" "\n"
-            r"\end{aligned}"
+            r"m \ddot{u} = k a^2 \frac{\partial^2 u}{\partial x^2} + \frac{k a^4}{12} \frac{\partial^4 u}{\partial x^4}"
         )
 
     # 6. Continuum definitions
@@ -105,7 +112,7 @@ def formula_text_to_latex(raw_text):
         return r"\psi_i = \frac{w_{i+1} - w_i}{a}"
 
     if 'Delta' in joined and 'psi' in joined:
-        return r"\Delta \psi_i = \psi_i - \psi_{i-1} = \frac{w_{i+1} - w_i}{a} - \frac{w_i - w_{i-1}}{a} = \frac{w_{i+1} - 2w_i + w_{i-1}}{a}"
+        return r"\Delta \psi_i = \psi_i - \psi_{i-1} = \frac{w_{i+1} - 2w_i + w_{i-1}}{a}"
 
     # General conversion:
     if len(lines) >= 2 and any(sym in joined for sym in ['=', '+', '-', '\\partial', '/']):
@@ -195,23 +202,19 @@ def convert(pdf_path, docx_path):
         for item_type, y, rect, data in content_items:
             if item_type == "formula":
                 box_text = data if isinstance(data, str) else ""
-                omml = None
+                omml_el = None
                 if box_text:
                     latex = formula_text_to_latex(box_text)
                     if latex:
-                        omml = latex_to_omml(latex)
+                        omml_el = latex_to_omml(latex)
                 
-                if omml:
+                if omml_el is not None:
                     p = out_doc.add_paragraph()
                     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     p.paragraph_format.space_before = Pt(8)
                     p.paragraph_format.space_after = Pt(8)
-                    try:
-                        p._p.append(parse_xml(omml))
-                    except Exception:
-                        omml = None
-                        
-                if not omml:
+                    p._p.append(omml_el)
+                else:
                     # Yüksek sadakatli görsel yedek
                     pix = page.get_pixmap(clip=rect, dpi=300)
                     tmp_path = f"tmp_f_{p_idx}_{int(y)}_{os.getpid()}.png"

@@ -1,5 +1,5 @@
 #define MyAppName "LD Converter"
-#define MyAppVersion "1.7.0"
+#define MyAppVersion "1.8.0"
 #define MyAppPublisher "LilDosto"
 #define MyAppURL "https://github.com/LilDosto/LD-Converter"
 #define MyAppExeName "LDConverter.exe"
@@ -18,7 +18,7 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=..\LICENSE
 OutputDir=..\dist
-OutputBaseFilename=LD-Converter-v1.7.0-Setup
+OutputBaseFilename=LD-Converter-v1.8.0-Setup
 SetupIconFile=..\src\Donustur.UI\Assets\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/ultra64
