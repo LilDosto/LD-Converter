@@ -69,6 +69,19 @@ public partial class SettingsWindow : Window
         CustomFolderText.Text = prefs.CustomOutputDirectory;
         CustomFolderPanel.Visibility = OutputModeCombo.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
 
+        if (ShortcutHelper.HasDesktopShortcut())
+        {
+            DesktopShortcutStatusText.Text = "✓ Masaüstü kısayolu mevcut";
+            DesktopShortcutStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
+            CreateDesktopShortcutBtn.Content = "✓ Kısayol Var";
+        }
+        else
+        {
+            DesktopShortcutStatusText.Text = "Masaüstüne hızlı başlatma kısayolu ekleyin.";
+            DesktopShortcutStatusText.Foreground = System.Windows.Media.Brushes.DarkGray;
+            CreateDesktopShortcutBtn.Content = "🖥️ Masaüstü Kısayolu Ekle";
+        }
+
         // Harici Motor Kontrolleri (UI thread'i kilitlememesi için arka planda tara)
         LibreOfficeStatusText.Text = "ℹ Kontrol ediliyor...";
         FfmpegStatusText.Text = "ℹ Kontrol ediliyor...";
@@ -360,6 +373,22 @@ public partial class SettingsWindow : Window
         InstallAllMissingBtn.IsEnabled = true;
         InstallAllMissingBtn.Content = "⚡ Tüm Eksik Motorları Otomatik Kur";
         LoadValues();
+    }
+
+    private void OnCreateDesktopShortcutClick(object sender, RoutedEventArgs e)
+    {
+        bool success = ShortcutHelper.CreateDesktopShortcut();
+        if (success)
+        {
+            DesktopShortcutStatusText.Text = "✓ Masaüstü kısayolu başarıyla oluşturuldu!";
+            DesktopShortcutStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
+            CreateDesktopShortcutBtn.Content = "✓ Kısayol Eklendi";
+        }
+        else
+        {
+            DesktopShortcutStatusText.Text = "✕ Kısayol oluşturulamadı.";
+            DesktopShortcutStatusText.Foreground = System.Windows.Media.Brushes.IndianRed;
+        }
     }
 
     private void OnStartupToggle(object sender, RoutedEventArgs e)

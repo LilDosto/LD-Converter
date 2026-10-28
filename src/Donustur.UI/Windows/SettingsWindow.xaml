@@ -297,6 +297,20 @@
                         </StackPanel>
                         <CheckBox x:Name="RunAtStartupCheck" Style="{StaticResource ModernSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="OnStartupToggle"/>
                     </DockPanel>
+
+                    <Separator Background="#2D3343" Margin="0,2,0,12"/>
+
+                    <DockPanel>
+                        <Button x:Name="CreateDesktopShortcutBtn" Content="🖥️ Masaüstü Kısayolu Ekle" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#2D3548" Foreground="#FFFFFF" BorderThickness="0" Padding="10,5" Cursor="Hand" Click="OnCreateDesktopShortcutClick">
+                            <Button.Resources>
+                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                            </Button.Resources>
+                        </Button>
+                        <StackPanel>
+                            <TextBlock Text="Masaüstü Kısayolu" Style="{StaticResource SettingLabel}"/>
+                            <TextBlock x:Name="DesktopShortcutStatusText" Text="Masaüstüne hızlı başlatma kısayolu oluşturun." Style="{StaticResource SettingDesc}"/>
+                        </StackPanel>
+                    </DockPanel>
                 </StackPanel>
             </Border>
 

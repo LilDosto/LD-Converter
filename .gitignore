@@ -4,6 +4,8 @@
 [Ll]og/
 [Ll]ogs/
 *.zip
+dist/
+LD-Converter-*-Setup.exe
 
 # Visual Studio / Rider / VS Code caches
 .vs/
