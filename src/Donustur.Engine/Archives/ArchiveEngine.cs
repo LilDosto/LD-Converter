@@ -13,8 +13,11 @@ public sealed class ArchiveEngine
 {
     public static string? Resolve7ZipPath()
     {
+        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         string[] candidates =
         {
+            Path.Combine(localAppData, "LDConverter", "tools", "7z.exe"),
+            Path.Combine(localAppData, "LDConverter", "tools", "7zr.exe"),
             @"C:\Program Files\7-Zip\7z.exe",
             @"C:\Program Files (x86)\7-Zip\7z.exe",
             @"C:\ProgramData\chocolatey\bin\7z.exe"
@@ -25,14 +28,31 @@ public sealed class ArchiveEngine
             if (File.Exists(c)) return c;
         }
 
+        // WinGet paket dizini
+        try
+        {
+            string wingetPackages = Path.Combine(localAppData, "Microsoft", "WinGet", "Packages");
+            if (Directory.Exists(wingetPackages))
+            {
+                var matches = Directory.GetFiles(wingetPackages, "7z.exe", SearchOption.AllDirectories);
+                if (matches.Length > 0 && File.Exists(matches[0]))
+                {
+                    return matches[0];
+                }
+            }
+        }
+        catch { }
+
         string? pathEnv = Environment.GetEnvironmentVariable("PATH");
         if (pathEnv != null)
         {
             foreach (var segment in pathEnv.Split(Path.PathSeparator))
             {
                 if (string.IsNullOrWhiteSpace(segment)) continue;
-                string combined = Path.Combine(segment.Trim(), "7z.exe");
-                if (File.Exists(combined)) return combined;
+                string c1 = Path.Combine(segment.Trim(), "7z.exe");
+                if (File.Exists(c1)) return c1;
+                string c2 = Path.Combine(segment.Trim(), "7zr.exe");
+                if (File.Exists(c2)) return c2;
             }
         }
 
@@ -240,8 +260,13 @@ public sealed class ArchiveEngine
         string? sevenZipExe = Resolve7ZipPath();
         if (sevenZipExe == null)
         {
+            sevenZipExe = await SevenZipInstaller.EnsureOrInstall7ZipAsync(token: token);
+        }
+
+        if (sevenZipExe == null || !File.Exists(sevenZipExe))
+        {
             throw new FileNotFoundException(
-                "7-Zip (7z.exe) sistemde bulunamadı. .7z formatında sıkıştırma için 7-Zip kurulu olmalıdır (veya ZIP / TAR.GZ seçeneğini kullanabilirsiniz).");
+                "7-Zip (7z.exe) bulunamadı ve otomatik indirilemedi. .7z sıkıştırması için lütfen internet bağlantınızı kontrol edin veya Ayarlar ekranından 7-Zip motorunu kurun.");
         }
 
         string baseName = string.IsNullOrWhiteSpace(archiveName)

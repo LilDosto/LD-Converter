@@ -28,6 +28,11 @@ public sealed class ConversionDispatcher
         _historyStore = historyStore;
     }
 
+    public MediaEngine Media => _mediaEngine;
+    public OfficeDocumentEngine Office => _officeEngine;
+    public ArchiveEngine Archive => _archiveEngine;
+    public PandocEngine Pandoc => _officeEngine.Pandoc;
+
     public async Task<ConversionResult> ExecuteTaskAsync(
         ConversionTask task,
         AppPreferences preferences,

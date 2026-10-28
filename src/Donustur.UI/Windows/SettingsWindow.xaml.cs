@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using Donustur.Core.Services;
+using Donustur.Engine;
 using Donustur.Engine.Archives;
 using Donustur.Engine.Documents;
 using Donustur.Engine.Media;
@@ -77,63 +78,71 @@ public partial class SettingsWindow : Window
         Task.Run(() =>
         {
             var officeEngine = new OfficeDocumentEngine(prefs.CustomLibreOfficePath, _customPandocPath);
-            bool officeAvailable = officeEngine.IsAvailable;
-            string? sofficePath = officeAvailable ? officeEngine.ResolveSofficePath() : null;
-
             var mediaEngine = new MediaEngine(prefs.CustomFfmpegPath);
-            bool mediaAvailable = mediaEngine.IsAvailable;
-            string? ffmpegPath = mediaAvailable ? mediaEngine.ResolveFfmpegPath() : null;
-
             var pandocEngine = new PandocEngine(_customPandocPath);
-            bool pandocAvailable = pandocEngine.IsAvailable;
-            string? pandocPath = pandocAvailable ? pandocEngine.ResolvePandocPath() : null;
-            string? pdfEngine = pandocAvailable ? pandocEngine.ResolvePdfEngine() : null;
+            var archiveEngine = new ArchiveEngine();
 
-            string? sevenZip = ArchiveEngine.Resolve7ZipPath();
+            var status = AllEnginesManager.GetCurrentStatus(mediaEngine, archiveEngine, pandocEngine, officeEngine);
+            string? pdfEngine = status.PandocAvailable ? pandocEngine.ResolvePdfEngine() : null;
 
             Dispatcher.BeginInvoke(() =>
             {
-                if (officeAvailable)
-                {
-                    LibreOfficeStatusText.Text = $"✓ Hazır ({sofficePath})";
-                    LibreOfficeStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
-                }
-                else
-                {
-                    LibreOfficeStatusText.Text = "ℹ Kurulu değil (TXT/DOCX/HTML/PDF yerel motoru aktif; PPTX/XLSX için LibreOffice seçilebilir)";
-                    LibreOfficeStatusText.Foreground = System.Windows.Media.Brushes.Khaki;
-                }
+                InstallAllMissingBtn.Visibility = status.AllInstalled ? Visibility.Collapsed : Visibility.Visible;
 
-                if (mediaAvailable)
+                if (status.FfmpegAvailable)
                 {
-                    FfmpegStatusText.Text = $"✓ Hazır ({ffmpegPath})";
+                    FfmpegStatusText.Text = $"✓ Hazır ({status.FfmpegPath})";
                     FfmpegStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
                     InstallFfmpegBtn.Visibility = Visibility.Collapsed;
                 }
                 else
                 {
-                    FfmpegStatusText.Text = "✕ Bulunamadı (Video & ses dönüşümleri için FFmpeg gereklidir)";
+                    FfmpegStatusText.Text = "✕ Bulunamadı (Video ve ses dönüşümleri için gereklidir)";
                     FfmpegStatusText.Foreground = System.Windows.Media.Brushes.IndianRed;
                     InstallFfmpegBtn.Visibility = Visibility.Visible;
                 }
 
-                if (pandocAvailable)
+                if (status.SevenZipAvailable)
+                {
+                    SevenZipStatusText.Text = $"✓ Hazır ({status.SevenZipPath})";
+                    SevenZipStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
+                    Install7zBtn.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    SevenZipStatusText.Text = "ℹ Kurulu değil (.7z ultra sıkıştırma için indirilebilir)";
+                    SevenZipStatusText.Foreground = System.Windows.Media.Brushes.Khaki;
+                    Install7zBtn.Visibility = Visibility.Visible;
+                }
+
+                if (status.PandocAvailable)
                 {
                     string engineInfo = pdfEngine != null ? $" [PDF Motoru: {pdfEngine}]" : "";
-                    PandocStatusText.Text = $"✓ Hazır ({pandocPath}){engineInfo}";
+                    PandocStatusText.Text = $"✓ Hazır ({status.PandocPath}){engineInfo}";
                     PandocStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
                     InstallPandocBtn.Visibility = Visibility.Collapsed;
                 }
                 else
                 {
-                    PandocStatusText.Text = "ℹ Kurulu değil (Markdown & LaTeX denklem dönüşümleri için kurabilirsiniz)";
+                    PandocStatusText.Text = "ℹ Kurulu değil (Markdown & LaTeX denklem dönüşümleri için)";
                     PandocStatusText.Foreground = System.Windows.Media.Brushes.Khaki;
                     InstallPandocBtn.Visibility = Visibility.Visible;
                 }
 
-                NativeEnginesStatusText.Text = sevenZip != null
-                    ? $"✓ Magick.NET, PdfPig, SharpCompress ve 7-Zip ({sevenZip}) hazır"
-                    : "✓ Magick.NET, PdfPig ve SharpCompress hazır (ZIP, TAR.GZ, Görsel, PDF, DOCX, QR)";
+                if (status.LibreOfficeAvailable)
+                {
+                    LibreOfficeStatusText.Text = $"✓ Hazır ({status.LibreOfficePath})";
+                    LibreOfficeStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
+                    InstallLibreOfficeBtn.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    LibreOfficeStatusText.Text = "ℹ Kurulu değil (TXT/DOCX/HTML yerel motoru aktif; PPTX/XLSX için kurulabilir)";
+                    LibreOfficeStatusText.Foreground = System.Windows.Media.Brushes.Khaki;
+                    InstallLibreOfficeBtn.Visibility = Visibility.Visible;
+                }
+
+                NativeEnginesStatusText.Text = "✓ Görsel (Magick.NET), PDF (PdfPig/SharpCore), DOCX, QR ve Arşiv motorları %100 dahili hazır";
             });
         });
     }
@@ -271,6 +280,85 @@ public partial class SettingsWindow : Window
         }
 
         InstallPandocBtn.IsEnabled = true;
+        LoadValues();
+    }
+
+    private void OnBrowse7zClick(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "7-Zip (7z.exe, 7zr.exe)|7z.exe;7zr.exe|Tüm Dosyalar (*.*)|*.*",
+            Title = "7-Zip çalıştırılabilir dosyasını seçin"
+        };
+        if (dlg.ShowDialog() == true)
+        {
+            LoadValues();
+        }
+    }
+
+    private async void OnInstall7zClick(object sender, RoutedEventArgs e)
+    {
+        Install7zBtn.IsEnabled = false;
+        SevenZipStatusText.Text = "📥 7-Zip motoru indiriliyor...";
+        SevenZipStatusText.Foreground = System.Windows.Media.Brushes.Khaki;
+
+        var progress = new Progress<string>(msg =>
+        {
+            Dispatcher.BeginInvoke(() => SevenZipStatusText.Text = msg);
+        });
+
+        await SevenZipInstaller.EnsureOrInstall7ZipAsync(progress);
+        Install7zBtn.IsEnabled = true;
+        LoadValues();
+    }
+
+    private async void OnInstallLibreOfficeClick(object sender, RoutedEventArgs e)
+    {
+        InstallLibreOfficeBtn.IsEnabled = false;
+        LibreOfficeStatusText.Text = "📥 LibreOffice winget ile indiriliyor (arka planda devam eder)...";
+        LibreOfficeStatusText.Foreground = System.Windows.Media.Brushes.Khaki;
+
+        var progress = new Progress<string>(msg =>
+        {
+            Dispatcher.BeginInvoke(() => LibreOfficeStatusText.Text = msg);
+        });
+
+        var officeEngine = new OfficeDocumentEngine(_preferencesStore.Current.CustomLibreOfficePath);
+        string? result = await LibreOfficeInstaller.EnsureOrInstallLibreOfficeAsync(officeEngine, progress);
+
+        if (result != null)
+        {
+            var prefs = _preferencesStore.Current;
+            prefs.CustomLibreOfficePath = result;
+            _preferencesStore.Save(prefs);
+        }
+
+        InstallLibreOfficeBtn.IsEnabled = true;
+        LoadValues();
+    }
+
+    private async void OnInstallAllMissingClick(object sender, RoutedEventArgs e)
+    {
+        InstallAllMissingBtn.IsEnabled = false;
+        InstallAllMissingBtn.Content = "⏳ Kuruluyor...";
+
+        var progress = new Progress<string>(msg =>
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (FfmpegStatusText != null) FfmpegStatusText.Text = msg;
+            });
+        });
+
+        var mediaEngine = new MediaEngine(_preferencesStore.Current.CustomFfmpegPath);
+        var officeEngine = new OfficeDocumentEngine(_preferencesStore.Current.CustomLibreOfficePath, _customPandocPath);
+        var pandocEngine = new PandocEngine(_customPandocPath);
+        var archiveEngine = new ArchiveEngine();
+
+        await AllEnginesManager.EnsureAllEnginesAsync(mediaEngine, archiveEngine, pandocEngine, officeEngine, progress);
+
+        InstallAllMissingBtn.IsEnabled = true;
+        InstallAllMissingBtn.Content = "⚡ Tüm Eksik Motorları Otomatik Kur";
         LoadValues();
     }
 

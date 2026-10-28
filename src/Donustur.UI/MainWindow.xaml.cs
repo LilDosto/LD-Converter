@@ -53,7 +53,7 @@ public partial class MainWindow : Window
         Loaded += (_, _) =>
         {
             RenderHistory();
-            CheckAndEnsureFfmpegOnStartup();
+            CheckAndEnsureAllEnginesOnStartup();
         };
         Closing += OnWindowClosing;
     }
@@ -68,21 +68,34 @@ public partial class MainWindow : Window
         WheelStatusLabel.Text = enabled ? $"Çark: {mod} (Aktif)" : "Çark: Kapalı";
     }
 
-    private void CheckAndEnsureFfmpegOnStartup()
+    private void CheckAndEnsureAllEnginesOnStartup()
     {
         _ = Task.Run(async () =>
         {
-            var mediaEngine = new MediaEngine(_preferencesStore.Current.CustomFfmpegPath);
-            string? found = mediaEngine.ResolveFfmpegPath();
-            if (found != null)
+            var status = AllEnginesManager.GetCurrentStatus(
+                _dispatcher.Media,
+                _dispatcher.Archive,
+                _dispatcher.Pandoc,
+                _dispatcher.Office);
+
+            if (status.AllInstalled)
             {
+                _ = Dispatcher.BeginInvoke(() =>
+                {
+                    FooterStatusLabel.Text = "✓ Tüm dönüştürme motorları (FFmpeg, 7-Zip, Pandoc, LibreOffice) hazır.";
+                });
                 return;
             }
 
-            // Bilgisayarda FFmpeg bulunamadı, kullanıcıya bildir ve otomatik kurulumu arka planda başlat
+            var missing = new List<string>();
+            if (!status.FfmpegAvailable) missing.Add("FFmpeg");
+            if (!status.SevenZipAvailable) missing.Add("7-Zip");
+            if (!status.PandocAvailable) missing.Add("Pandoc");
+            if (!status.LibreOfficeAvailable) missing.Add("LibreOffice");
+
             _ = Dispatcher.BeginInvoke(() =>
             {
-                FooterStatusLabel.Text = "ℹ Video & ses dönüşümleri için FFmpeg taranıyor / indiriliyor...";
+                FooterStatusLabel.Text = $"ℹ Eksik motorlar taranıyor ({string.Join(", ", missing)})...";
             });
 
             var progress = new Progress<string>(msg =>
@@ -93,22 +106,29 @@ public partial class MainWindow : Window
                 });
             });
 
-            string? installedPath = await FfmpegInstaller.EnsureOrInstallFfmpegAsync(mediaEngine, progress);
+            var finalStatus = await AllEnginesManager.EnsureAllEnginesAsync(
+                _dispatcher.Media,
+                _dispatcher.Archive,
+                _dispatcher.Pandoc,
+                _dispatcher.Office,
+                progress);
+
             _ = Dispatcher.BeginInvoke(() =>
             {
-                if (installedPath != null)
+                if (finalStatus.FfmpegAvailable && string.IsNullOrWhiteSpace(_preferencesStore.Current.CustomFfmpegPath))
                 {
-                    FooterStatusLabel.Text = $"✓ FFmpeg hazırlandı ({Path.GetFileName(installedPath)}). Video ve ses dönüşümleri aktif!";
-                    if (string.IsNullOrWhiteSpace(_preferencesStore.Current.CustomFfmpegPath))
-                    {
-                        var prefs = _preferencesStore.Current;
-                        prefs.CustomFfmpegPath = installedPath;
-                        _preferencesStore.Save(prefs);
-                    }
+                    var prefs = _preferencesStore.Current;
+                    prefs.CustomFfmpegPath = finalStatus.FfmpegPath;
+                    _preferencesStore.Save(prefs);
+                }
+
+                if (finalStatus.AllInstalled)
+                {
+                    FooterStatusLabel.Text = "✓ Tüm motorlar hazır (FFmpeg, 7-Zip, Pandoc, LibreOffice)!";
                 }
                 else
                 {
-                    FooterStatusLabel.Text = "ℹ FFmpeg otomatik kurulamadı. Ayarlar ekranından manuel yükleyebilirsiniz.";
+                    FooterStatusLabel.Text = $"✓ Motor kontrolü tamamlandı ({finalStatus.InstalledCount}/{finalStatus.TotalCount} motor hazır).";
                 }
             });
         });

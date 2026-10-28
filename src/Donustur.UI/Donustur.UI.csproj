@@ -15,7 +15,7 @@
     <AssemblyName>LDConverter</AssemblyName>
     <Product>LD Converter</Product>
     <Title>LD Converter</Title>
-    <Version>1.3.0</Version>
+    <Version>1.4.0</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

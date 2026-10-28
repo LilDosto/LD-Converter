@@ -301,24 +301,16 @@
             </Border>
 
             <!-- Harici Motor Durumu -->
-            <TextBlock Text="Dönüştürme Motorları &amp; Durum" Style="{StaticResource SectionTitle}"/>
+            <DockPanel Margin="0,0,0,6">
+                <Button x:Name="InstallAllMissingBtn" Content="⚡ Tüm Eksik Motorları Otomatik Kur" DockPanel.Dock="Right" Background="#059669" Foreground="#FFFFFF" FontWeight="SemiBold" BorderThickness="0" Padding="10,5" Cursor="Hand" Click="OnInstallAllMissingClick">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                    </Button.Resources>
+                </Button>
+                <TextBlock Text="Dönüştürme Motorları &amp; Durum" Style="{StaticResource SectionTitle}" Margin="0,0,0,0" VerticalAlignment="Center"/>
+            </DockPanel>
             <Border Background="#1A1E2B" BorderBrush="#262C3D" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,0,18">
                 <StackPanel>
-                    <!-- LibreOffice -->
-                    <DockPanel Margin="0,0,0,8">
-                        <Button Content="soffice.exe Seç..." DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#2D3548" Foreground="#FFFFFF" BorderThickness="0" Padding="10,5" Cursor="Hand" Click="OnBrowseLibreOfficeClick">
-                            <Button.Resources>
-                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
-                            </Button.Resources>
-                        </Button>
-                        <StackPanel>
-                            <TextBlock Text="LibreOffice (Ofis Belgeleri Motoru)" Style="{StaticResource SettingLabel}"/>
-                            <TextBlock x:Name="LibreOfficeStatusText" Text="Kontrol ediliyor..." Style="{StaticResource SettingDesc}" TextTrimming="CharacterEllipsis"/>
-                        </StackPanel>
-                    </DockPanel>
-
-                    <Separator Background="#2D3343" Margin="0,4,0,10"/>
-
                     <!-- FFmpeg -->
                     <DockPanel Margin="0,0,0,8">
                         <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -336,6 +328,28 @@
                         <StackPanel>
                             <TextBlock Text="FFmpeg (Video &amp; Ses Motoru)" Style="{StaticResource SettingLabel}"/>
                             <TextBlock x:Name="FfmpegStatusText" Text="Kontrol ediliyor..." Style="{StaticResource SettingDesc}" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <Separator Background="#2D3343" Margin="0,4,0,10"/>
+
+                    <!-- 7-Zip -->
+                    <DockPanel Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button x:Name="Install7zBtn" Content="📥 Hızlı İndir" Background="#4F46E5" Foreground="#FFFFFF" BorderThickness="0" Padding="10,5" Margin="0,0,6,0" Cursor="Hand" Click="OnInstall7zClick">
+                                <Button.Resources>
+                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                </Button.Resources>
+                            </Button>
+                            <Button Content="7z.exe Seç..." Background="#2D3548" Foreground="#FFFFFF" BorderThickness="0" Padding="10,5" Cursor="Hand" Click="OnBrowse7zClick">
+                                <Button.Resources>
+                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="7-Zip (Yüksek Sıkıştırma Motoru)" Style="{StaticResource SettingLabel}"/>
+                            <TextBlock x:Name="SevenZipStatusText" Text="Kontrol ediliyor..." Style="{StaticResource SettingDesc}" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </DockPanel>
 
@@ -363,11 +377,33 @@
 
                     <Separator Background="#2D3343" Margin="0,4,0,10"/>
 
-                    <!-- 7-Zip & Yerel Motorlar -->
+                    <!-- LibreOffice -->
+                    <DockPanel Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button x:Name="InstallLibreOfficeBtn" Content="📥 Winget ile Kur" Background="#4F46E5" Foreground="#FFFFFF" BorderThickness="0" Padding="10,5" Margin="0,0,6,0" Cursor="Hand" Click="OnInstallLibreOfficeClick">
+                                <Button.Resources>
+                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                </Button.Resources>
+                            </Button>
+                            <Button Content="soffice.exe Seç..." Background="#2D3548" Foreground="#FFFFFF" BorderThickness="0" Padding="10,5" Cursor="Hand" Click="OnBrowseLibreOfficeClick">
+                                <Button.Resources>
+                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="LibreOffice (Gelişmiş Ofis Belgeleri Motoru)" Style="{StaticResource SettingLabel}"/>
+                            <TextBlock x:Name="LibreOfficeStatusText" Text="Kontrol ediliyor..." Style="{StaticResource SettingDesc}" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <Separator Background="#2D3343" Margin="0,4,0,10"/>
+
+                    <!-- Dahili Yerel Motorlar -->
                     <DockPanel>
                         <StackPanel>
-                            <TextBlock Text="Yerel Motorlar (Magick.NET, PdfPig, SharpCompress, 7-Zip)" Style="{StaticResource SettingLabel}"/>
-                            <TextBlock x:Name="NativeEnginesStatusText" Text="✓ Görsel, PDF, DOCX, QR ve Arşiv motorları aktif" Style="{StaticResource SettingDesc}" Foreground="#86EFAC"/>
+                            <TextBlock Text="Dahili Motorlar (Magick.NET, PdfPig, PdfSharpCore, ZXing, SharpCompress)" Style="{StaticResource SettingLabel}"/>
+                            <TextBlock x:Name="NativeEnginesStatusText" Text="✓ Görsel, PDF, DOCX, QR, ZIP ve TAR motorları %100 dahili ve hazır" Style="{StaticResource SettingDesc}" Foreground="#86EFAC"/>
                         </StackPanel>
                     </DockPanel>
                 </StackPanel>
