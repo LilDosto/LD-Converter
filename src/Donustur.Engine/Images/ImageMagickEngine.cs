@@ -19,6 +19,7 @@ public sealed class ImageMagickEngine
 
     /// <summary>
     /// Tek veya çoklu görselleri hedef formata dönüştürür.
+    /// Çoklu dosya dönüşümlerinde yarış koşulsuz yol ayırma ve CPU çekirdeklerine göre paralel işleme uygular.
     /// </summary>
     public async Task<IReadOnlyList<string>> ConvertImagesAsync(
         IReadOnlyList<string> inputFiles,
@@ -28,7 +29,11 @@ public sealed class ImageMagickEngine
         IProgress<double>? progress = null,
         CancellationToken token = default)
     {
-        var outputPaths = new List<string>();
+        if (inputFiles.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
         string formatKey = targetFormat.ToLowerInvariant().TrimStart('.');
 
         // Çoklu görsellerden tek PDF oluşturma
@@ -54,8 +59,7 @@ public sealed class ImageMagickEngine
                 collection.Write(outPath, MagickFormat.Pdf);
             }, token);
 
-            outputPaths.Add(outPath);
-            return outputPaths;
+            return new[] { outPath };
         }
 
         // Çoklu görsellerden animasyonlu GIF oluşturma
@@ -81,81 +85,111 @@ public sealed class ImageMagickEngine
                 progress?.Report(100.0);
             }, token);
 
-            outputPaths.Add(outPath);
-            return outputPaths;
+            return new[] { outPath };
         }
 
         // Birebir görsel dönüşümleri
         MagickFormat magickFormat = MapFormat(formatKey);
+        string[] outputPaths = new string[inputFiles.Count];
+        int completedCount = 0;
+
+        // YARIŞ DURUMU (RACE CONDITION) ÖNLEME:
+        // Aynı temel ada sahip dosyalar (örn: resim.png ve resim.bmp -> resim.webp) paralel iş parçacıklarında
+        // aynı anda SafePaths.GetUniquePath çağırdığında çakışmayı önlemek için yollar önceden belirlenir.
+        var reservedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var jobItems = new (string inputPath, string outPath, int idx)[inputFiles.Count];
 
         for (int i = 0; i < inputFiles.Count; i++)
         {
-            token.ThrowIfCancellationRequested();
             string inputPath = inputFiles[i];
             string fileNameWithoutExt = Path.GetFileNameWithoutExtension(inputPath);
             string extensionWithDot = formatKey == "compress_image"
                 ? Path.GetExtension(inputPath)
                 : "." + formatKey;
 
-            string outPath = SafePaths.GetUniquePath(transaction.StagingDirectory, fileNameWithoutExt + extensionWithDot);
-
-            await Task.Run(() =>
+            string candidate = SafePaths.GetUniquePath(transaction.StagingDirectory, fileNameWithoutExt + extensionWithDot);
+            int counter = 1;
+            while (reservedPaths.Contains(candidate))
             {
-                using var image = new MagickImage(inputPath);
-                image.AutoOrient();
-
-                if (options.StripMetadata)
-                {
-                    image.Strip();
-                }
-
-                if (options.ResizeWidth.HasValue || options.ResizeHeight.HasValue)
-                {
-                    var geo = new MagickGeometry((uint)(options.ResizeWidth ?? 0), (uint)(options.ResizeHeight ?? 0))
-                    {
-                        IgnoreAspectRatio = false
-                    };
-                    image.Resize(geo);
-                }
-
-                if (formatKey == "compress_image")
-                {
-                    image.Quality = (uint)System.Math.Clamp(options.ImageQuality, 10, 95);
-                    image.Strip();
-                    image.Write(outPath);
-                }
-                else if (magickFormat == MagickFormat.Ico)
-                {
-                    // Oranı koruyarak 256x256 şeffaf tuvale ortala
-                    image.Resize(new MagickGeometry(256, 256) { IgnoreAspectRatio = false });
-                    image.BackgroundColor = MagickColors.Transparent;
-                    image.Extent(256, 256, Gravity.Center);
-                    image.Write(outPath, MagickFormat.Ico);
-                }
-                else
-                {
-                    if (magickFormat is MagickFormat.Jpg or MagickFormat.Jpeg)
-                    {
-                        // Şeffaf PNG/WebP görseller JPG'ye çevrilirken siyah arka plan oluşmasını önle
-                        if (image.HasAlpha)
-                        {
-                            image.ColorAlpha(MagickColors.White);
-                        }
-                    }
-
-                    if (magickFormat is MagickFormat.Jpg or MagickFormat.Jpeg or MagickFormat.WebP or MagickFormat.Avif)
-                    {
-                        image.Quality = (uint)System.Math.Clamp(options.ImageQuality, 10, 100);
-                    }
-                    image.Write(outPath, magickFormat);
-                }
-            }, token);
-
-            outputPaths.Add(outPath);
-            progress?.Report((double)(i + 1) / inputFiles.Count * 100.0);
+                candidate = SafePaths.GetUniquePath(transaction.StagingDirectory, $"{fileNameWithoutExt} ({counter}){extensionWithDot}");
+                counter++;
+            }
+            reservedPaths.Add(candidate);
+            jobItems[i] = (inputPath, candidate, i);
         }
 
-        return outputPaths;
+        // Paralel işleme yapılandırması: CPU çekirdek sayısına göre dinamik ölçekleme
+        var parallelOptions = new ParallelOptions
+        {
+            CancellationToken = token,
+            MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 1, 8)
+        };
+
+        await Parallel.ForEachAsync(jobItems, parallelOptions, (item, ct) =>
+        {
+            ct.ThrowIfCancellationRequested();
+
+            string inputPath = item.inputPath;
+            string outPath = item.outPath;
+            int idx = item.idx;
+
+            using var image = new MagickImage(inputPath);
+            image.AutoOrient();
+
+            if (options.StripMetadata)
+            {
+                image.Strip();
+            }
+
+            if (options.ResizeWidth.HasValue || options.ResizeHeight.HasValue)
+            {
+                var geo = new MagickGeometry((uint)(options.ResizeWidth ?? 0), (uint)(options.ResizeHeight ?? 0))
+                {
+                    IgnoreAspectRatio = false
+                };
+                image.Resize(geo);
+            }
+
+            if (formatKey == "compress_image")
+            {
+                image.Quality = (uint)System.Math.Clamp(options.ImageQuality, 10, 95);
+                image.Strip();
+                image.Write(outPath);
+            }
+            else if (magickFormat == MagickFormat.Ico)
+            {
+                // Oranı koruyarak 256x256 şeffaf tuvale ortala
+                image.Resize(new MagickGeometry(256, 256) { IgnoreAspectRatio = false });
+                image.BackgroundColor = MagickColors.Transparent;
+                image.Extent(256, 256, Gravity.Center);
+                image.Write(outPath, MagickFormat.Ico);
+            }
+            else
+            {
+                if (magickFormat is MagickFormat.Jpg or MagickFormat.Jpeg)
+                {
+                    // Şeffaf PNG/WebP görseller JPG'ye çevrilirken siyah arka plan oluşmasını önle
+                    if (image.HasAlpha)
+                    {
+                        image.ColorAlpha(MagickColors.White);
+                    }
+                }
+
+                if (magickFormat is MagickFormat.Jpg or MagickFormat.Jpeg or MagickFormat.WebP or MagickFormat.Avif)
+                {
+                    image.Quality = (uint)System.Math.Clamp(options.ImageQuality, 10, 100);
+                }
+                image.Write(outPath, magickFormat);
+            }
+
+            outputPaths[idx] = outPath;
+            int currentDone = Interlocked.Increment(ref completedCount);
+            progress?.Report((double)currentDone / inputFiles.Count * 100.0);
+
+            return ValueTask.CompletedTask;
+        });
+
+        return outputPaths.Where(p => !string.IsNullOrEmpty(p)).ToList();
     }
 
     private static MagickFormat MapFormat(string format)

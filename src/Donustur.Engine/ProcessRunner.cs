@@ -8,14 +8,15 @@ public static class ProcessRunner
     public sealed record ProcessOutput(int ExitCode, string StandardOutput, string StandardError);
 
     /// <summary>
-    /// Harici CLI araçlarını (FFmpeg, LibreOffice vb.) UI'ı dondurmadan,
-    /// CancellationToken ile süreç ağacını sonlandırabilen güvenli çalıştırıcı.
+    /// Harici CLI araçlarını (FFmpeg, LibreOffice, Pandoc, Python vb.) UI'ı dondurmadan,
+    /// zaman aşımı korumalı ve CancellationToken ile süreç ağacını güvenli sonlandırabilen çalıştırıcı.
     /// </summary>
     public static async Task<ProcessOutput> RunAsync(
         string exePath,
         string arguments,
         string? workingDirectory = null,
         IProgress<string>? outputProgress = null,
+        TimeSpan? timeout = null,
         CancellationToken token = default)
     {
         if (!File.Exists(exePath))
@@ -45,7 +46,8 @@ public static class ProcessRunner
         {
             if (outputProgress == null) return;
             long now = Environment.TickCount64;
-            if (now - Interlocked.Read(ref lastReportTicks) >= 60) // En fazla ~16 FPS raporlama (WPF Dispatcher koruması)
+            // En fazla ~16 FPS raporlama (WPF Dispatcher kuyruğunun şişmesini önleme)
+            if (now - Interlocked.Read(ref lastReportTicks) >= 60)
             {
                 Interlocked.Exchange(ref lastReportTicks, now);
                 outputProgress.Report(line);
@@ -80,23 +82,55 @@ public static class ProcessRunner
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
-        // CancellationToken ile işlem iptal edilirse süreci ve alt süreçlerini zorla sonlandır
-        using (token.Register(() =>
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        if (timeout.HasValue && timeout.Value > TimeSpan.Zero)
         {
-            try
+            linkedCts.CancelAfter(timeout.Value);
+        }
+
+        var effectiveToken = linkedCts.Token;
+
+        try
+        {
+            using (effectiveToken.Register(() =>
             {
-                if (!process.HasExited)
+                try
                 {
-                    process.Kill(entireProcessTree: true);
+                    if (!process.HasExited)
+                    {
+                        // Alt süreçleriyle (process tree) birlikte derhal zorla kapat (Zombi süreç önleme)
+                        process.Kill(entireProcessTree: true);
+                    }
                 }
-            }
-            catch
+                catch
+                {
+                    // Süreç zaten kapanmış olabilir
+                }
+            }))
             {
-                // Süreç zaten kapanmış olabilir
+                await process.WaitForExitAsync(effectiveToken);
             }
-        }))
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
-            await process.WaitForExitAsync(token);
+            // Kullanıcı tarafından iptal edildi
+            throw;
+        }
+        catch (OperationCanceledException) when (timeout.HasValue && linkedCts.IsCancellationRequested)
+        {
+            throw new TimeoutException($"CLI işlemi zaman aşımına uğradı ({timeout.Value.TotalSeconds:F0} sn): {Path.GetFileName(exePath)}");
+        }
+
+        // KRİTİK DÜZELTME: .NET'te WaitForExitAsync, asenkron BeginOutput/ErrorReadLine akışlarının
+        // tamponlarını boşaltmasını beklemez. Standart WaitForExit() çağrılarak tüm logların
+        // eksiksiz StringBuilder'a aktarılması garanti altına alınır (Yarış durumu & log kesilmesi önleme).
+        try
+        {
+            process.WaitForExit();
+        }
+        catch
+        {
+            // İşlem tamamlandıktan sonra oluşabilecek istisnaları yut
         }
 
         return new ProcessOutput(process.ExitCode, stdOut.ToString(), stdErr.ToString());

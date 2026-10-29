@@ -58,7 +58,7 @@ public static class SevenZipInstaller
                     string downloadUrl = "https://www.7-zip.org/a/7zr.exe";
 
                     using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
-                    client.DefaultRequestHeaders.UserAgent.ParseAdd("LDConverter/1.9.0");
+                    client.DefaultRequestHeaders.UserAgent.ParseAdd("LDConverter/2.0.0");
 
                     byte[] data = await client.GetByteArrayAsync(downloadUrl, token);
                     if (data.Length > 10000)

@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, tempfile
 sys.modules['pymupdf.layout'] = None
 import fitz
 import docx
@@ -215,9 +215,10 @@ def convert(pdf_path, docx_path):
                     p.paragraph_format.space_after = Pt(8)
                     p._p.append(omml_el)
                 else:
-                    # Yüksek sadakatli görsel yedek
+                    # Yüksek sadakatli görsel yedek (Program Files erişim engeli yaşamaması için Temp dizinine yazılır)
                     pix = page.get_pixmap(clip=rect, dpi=300)
-                    tmp_path = f"tmp_f_{p_idx}_{int(y)}_{os.getpid()}.png"
+                    tmp_dir = tempfile.gettempdir()
+                    tmp_path = os.path.join(tmp_dir, f"donustur_f_{p_idx}_{int(y)}_{os.getpid()}.png")
                     pix.save(tmp_path)
                     
                     p = out_doc.add_paragraph()
@@ -242,6 +243,7 @@ def convert(pdf_path, docx_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Usage: ld_pdf_math_engine <input.pdf> <output.docx>")
+        print("Usage: ld_pdf_math_engine <input.pdf> <output.docx>", file=sys.stderr)
         sys.exit(1)
-    convert(sys.argv[1], sys.argv[2])
+    success = convert(sys.argv[1], sys.argv[2])
+    sys.exit(0 if success else 1)

@@ -54,12 +54,15 @@ public static class PdfMathEngine
             if (engineExe != null)
             {
                 string args = $"\"{inputPdf}\" \"{targetDocxPath}\"";
-                var result = await ProcessRunner.RunAsync(engineExe, args, token: token);
-                if (result.ExitCode == 0 && File.Exists(targetDocxPath))
+                var result = await ProcessRunner.RunAsync(engineExe, args, timeout: TimeSpan.FromMinutes(5), token: token);
+                if (result.ExitCode == 0 && File.Exists(targetDocxPath) && new FileInfo(targetDocxPath).Length > 0)
                 {
                     progress?.Report(100.0);
                     return targetDocxPath;
                 }
+
+                // Tanılama amacıyla hata logunu kaydet
+                Debug.WriteLine($"[PdfMathEngine] ld_pdf_math_engine exit code: {result.ExitCode}, stderr: {result.StandardError}");
             }
 
             // 2. Python ve script alternatifi
@@ -67,25 +70,53 @@ public static class PdfMathEngine
             string scriptPath = Path.Combine(baseDir, "tools", "cli_math_engine.py");
             if (!File.Exists(scriptPath))
             {
+                scriptPath = Path.Combine(Directory.GetCurrentDirectory(), "tools", "cli_math_engine.py");
+            }
+            if (!File.Exists(scriptPath))
+            {
                 scriptPath = Path.Combine(Directory.GetCurrentDirectory(), "cli_math_engine.py");
             }
 
             if (File.Exists(scriptPath))
             {
-                string pyArgs = $"\"{scriptPath}\" \"{inputPdf}\" \"{targetDocxPath}\"";
-                var pyResult = await ProcessRunner.RunAsync("python", pyArgs, token: token);
-                if (pyResult.ExitCode == 0 && File.Exists(targetDocxPath))
+                string? pythonPath = ResolvePythonPath();
+                if (pythonPath != null)
                 {
-                    progress?.Report(100.0);
-                    return targetDocxPath;
+                    string pyArgs = $"\"{scriptPath}\" \"{inputPdf}\" \"{targetDocxPath}\"";
+                    var pyResult = await ProcessRunner.RunAsync(pythonPath, pyArgs, timeout: TimeSpan.FromMinutes(5), token: token);
+                    if (pyResult.ExitCode == 0 && File.Exists(targetDocxPath) && new FileInfo(targetDocxPath).Length > 0)
+                    {
+                        progress?.Report(100.0);
+                        return targetDocxPath;
+                    }
+                    Debug.WriteLine($"[PdfMathEngine] Python script exit code: {pyResult.ExitCode}, stderr: {pyResult.StandardError}");
                 }
             }
         }
-        catch
+        catch (OperationCanceledException)
         {
-            // Sessizce yedeğe dön
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[PdfMathEngine] Exception: {ex.Message}");
         }
 
+        return null;
+    }
+
+    private static string? ResolvePythonPath()
+    {
+        string? pathEnv = Environment.GetEnvironmentVariable("PATH");
+        if (pathEnv != null)
+        {
+            foreach (var segment in pathEnv.Split(Path.PathSeparator))
+            {
+                if (string.IsNullOrWhiteSpace(segment)) continue;
+                string candidate = Path.Combine(segment.Trim(), "python.exe");
+                if (File.Exists(candidate)) return candidate;
+            }
+        }
         return null;
     }
 }

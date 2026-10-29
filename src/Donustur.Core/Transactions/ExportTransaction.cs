@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Donustur.Core.Utils;
 
 namespace Donustur.Core.Transactions;
@@ -5,7 +6,7 @@ namespace Donustur.Core.Transactions;
 /// <summary>
 /// Dönüştürme sırasında hedef klasörün yarım/bozuk dosyalarla kirlenmesini önleyen
 /// atomik evreleme (staging) yöneticisi. Farklı disk sürücüleri (C:, D:, USB) arasında
-/// klasör hiyerarşisini koruyarak güvenli aktarım yapar.
+/// klasör hiyerarşisini koruyarak ve geçici dosya kilitlerine karşı dirençli güvenli aktarım yapar.
 /// </summary>
 public sealed class ExportTransaction : IDisposable
 {
@@ -51,7 +52,7 @@ public sealed class ExportTransaction : IDisposable
                 dest = SafePaths.GetUniquePath(destinationFolder, fileName);
             }
 
-            File.Move(sourceFile, dest, overwrite: true);
+            SafeMoveFileWithRetry(sourceFile, dest);
             finalPaths.Add(dest);
         }
 
@@ -94,7 +95,28 @@ public sealed class ExportTransaction : IDisposable
             {
                 Directory.CreateDirectory(targetParent);
             }
-            File.Move(file, targetFile, overwrite: true);
+            SafeMoveFileWithRetry(file, targetFile);
+        }
+    }
+
+    /// <summary>
+    /// Windows Defender veya disk önbellek gecikmelerinde dosya kilitlenmesi (Sharing Violation)
+    /// yaşandığında exponential backoff ile 3 kez yeniden deneyen dirençli taşıma mekanizması.
+    /// </summary>
+    private static void SafeMoveFileWithRetry(string source, string destination, int maxAttempts = 3)
+    {
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                File.Move(source, destination, overwrite: true);
+                return;
+            }
+            catch (IOException) when (attempt < maxAttempts)
+            {
+                // 50ms, 120ms bekleme
+                Thread.Sleep(attempt * 60);
+            }
         }
     }
 
@@ -112,7 +134,7 @@ public sealed class ExportTransaction : IDisposable
         }
         catch
         {
-            // Arka plandaki kilitli dosyalar için sessizce geç
+            // Arka plandaki kilitli geçici dosyalar için sessizce geç
         }
     }
 }

@@ -78,7 +78,7 @@ public static class TinyTexInstaller
 
                     using (var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) })
                     {
-                        client.DefaultRequestHeaders.UserAgent.ParseAdd("LDConverter/1.9.0");
+                        client.DefaultRequestHeaders.UserAgent.ParseAdd("LDConverter/2.0.0");
                         using var resp = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, token);
                         resp.EnsureSuccessStatusCode();
 
